@@ -1,5 +1,5 @@
 --==================================================================
---  LUNAA — DELTA EXECUTOR (Full Features)
+--  LUNAA — DELTA EXECUTOR (Premium UI + Bubble "Bỏng Ỏng" Sound)
 --==================================================================
 local Players             = game:GetService("Players")
 local RunService          = game:GetService("RunService")
@@ -7,7 +7,6 @@ local UIS                 = game:GetService("UserInputService")
 local TweenService        = game:GetService("TweenService")
 local Workspace           = game:GetService("Workspace")
 local TextChatService     = game:GetService("TextChatService")
-local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local player    = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -16,15 +15,41 @@ local playerGui = player:WaitForChild("PlayerGui")
 local TARGET          = Vector3.new(-94, 3, 134)
 local LINE_COLOR      = Color3.new(1, 1, 1)
 local TWEEN_SPEED     = 200 
-local SOUND_ID        = "rbxassetid://876939830" 
+local SOUND_ID        = "rbxassetid://876939830" -- Gõ phím
+local BUBBLE_ID       = "rbxassetid://5153119439" -- Tiếng Bong Bóng (Bỏng ỏng)
+local BUBBLE_PITCH    = 1.2 -- Tăng pitch để nghe giòn hơn
 local CHAT_COMMAND    = "st"
 
--- Cấu hình Xóa Map (Cleaner)
 local KeepTopNames = { chilled = true, AnimSaves = true, Eggs = true }
 local ZonePattern  = "^Zone(%d+)$"
 local KeepEggs     = true
 local ChickenOnlyAnimSaves = true
 --==================================================================
+
+--══════════════════════ [0] HÀM ÂM THANH BỎNG ỎNG ══════════════════════
+local function playBubble()
+    local s = Instance.new("Sound")
+    s.SoundId = BUBBLE_ID
+    s.Volume = 1
+    s.PlaybackSpeed = BUBBLE_PITCH
+    s.Parent = Workspace
+    s:Play()
+    s.Ended:Connect(function() s:Destroy() end)
+end
+
+local clickSound = Instance.new("Sound")
+clickSound.SoundId = SOUND_ID
+clickSound.Volume = 0.2
+clickSound.Parent = Workspace
+
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local s = clickSound:Clone()
+        s.Parent = Workspace
+        s:Play()
+        s.Ended:Connect(function() s:Destroy() end)
+    end
+end)
 
 --══════════════════════ [1] ANTI STUN & KNOCKBACK ══════════════════════
 local antiStun = true
@@ -138,27 +163,10 @@ local function setupPrompt(prompt)
         prompt.RequiresLineOfSight = false
     end
 end
-
 for _, v in ipairs(Workspace:GetDescendants()) do setupPrompt(v) end
 Workspace.DescendantAdded:Connect(setupPrompt)
 
---══════════════════════ [3] ÂM THANH CHẠM MÀN HÌNH ══════════════════════
-local clickSound = Instance.new("Sound")
-clickSound.SoundId = SOUND_ID
-clickSound.Volume = 0.5
-clickSound.Parent = Workspace
-
-UIS.InputBegan:Connect(function(input, gameProcessed)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 
-    or input.UserInputType == Enum.UserInputType.Touch then
-        local s = clickSound:Clone()
-        s.Parent = Workspace
-        s:Play()
-        s.Ended:Connect(function() s:Destroy() end)
-    end
-end)
-
---══════════════════════ [4] NOCLIP + SÀN TÀNG HÌNH (Y=3) ══════════════════════
+--══════════════════════ [3] NOCLIP + SÀN TÀNG HÌNH ══════════════════════
 local invisibleFloor = Instance.new("Part")
 invisibleFloor.Name = "LunaaInvisibleFloor"
 invisibleFloor.Size = Vector3.new(10, 1, 10)
@@ -185,7 +193,7 @@ player.CharacterAdded:Connect(function(char)
     if invisibleFloor then invisibleFloor.Parent = Workspace end
 end)
 
---══════════════════════ [5] CLEANER CHẠY NGẦM ══════════════════════
+--══════════════════════ [4] CLEANER CHẠY NGẦM ══════════════════════
 task.spawn(function()
     local Build = Workspace:WaitForChild("Build", 30)
     if not Build then return end
@@ -231,7 +239,7 @@ task.spawn(function()
     print(("[Lunaa] Đã xóa map ngầm: zones=%d top=%d children=%d"):format(stats.zones, stats.top, stats.children))
 end)
 
---══════════════════════ [6] GIAO DIỆN UI (MỞ MẶC ĐỊNH) ══════════════════════
+--══════════════════════ [5] GIAO DIỆN UI (PREMIUM) ══════════════════════
 pcall(function() playerGui.LunaaLineMenu:Destroy() end)
 pcall(function() game:GetService("CoreGui").LunaaLineMenu:Destroy() end)
 
@@ -241,7 +249,7 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.DisplayOrder = 999999 
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.Enabled = true -- MỞ MẶC ĐỊNH
+gui.Enabled = true 
 
 local success = pcall(function()
     gui.Parent = game:GetService("CoreGui")
@@ -250,7 +258,7 @@ if not success or not gui.Parent then
     gui.Parent = playerGui
 end
 
---══════════════════════ [7] CHAT "st" ══════════════════════
+-- Chat toggle
 local menuVisible = true
 local lastToggle = 0
 
@@ -269,7 +277,6 @@ if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
         end
     end)
 end
-
 pcall(function()
     player.Chatted:Connect(function(msg)
         local text = msg:lower():match("^%s*(.-)%s*$")
@@ -284,202 +291,204 @@ task.spawn(function()
     end
 end)
 
---══════════════════════ [8] KHUNG CHÍNH & MÀU TÍM ══════════════════════
+--────────────────────── KHUNG CHÍNH ──────────────────────
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 200, 0, 36)
+main.Size = UDim2.new(0, 220, 0, 40)
 main.Position = UDim2.new(1, -20, 0, 20)
 main.AnchorPoint = Vector2.new(1, 0)     
-main.BackgroundColor3 = Color3.fromRGB(15, 10, 25) -- Tím rất tối
-main.BackgroundTransparency = 0.1
+main.BackgroundColor3 = Color3.fromRGB(15, 10, 20) 
+main.BackgroundTransparency = 0.15
 main.BorderSizePixel = 0
 main.ClipsDescendants = true             
 main.Parent = gui
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
 
--- Viền Gradient Tím nhạt -> Tím đậm
 local mainStroke = Instance.new("UIStroke", main)
-mainStroke.Thickness = 1.5
-mainStroke.Transparency = 0.1
+mainStroke.Thickness = 2
+mainStroke.Transparency = 0
 local strokeGrad = Instance.new("UIGradient", mainStroke)
 strokeGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 100, 255)), -- Tím nhạt
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 0, 150))     -- Tím đậm
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 130, 255)), 
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 0, 150))     
 })
+strokeGrad.Rotation = 45
 
 local header = Instance.new("Frame")
-header.Size = UDim2.new(1, 0, 0, 36)
+header.Size = UDim2.new(1, 0, 0, 40)
 header.BackgroundTransparency = 1
 header.Parent = main
 
--- Title: Lunaa Gradient Tím
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -50, 1, 0)
-title.Position = UDim2.new(0, 12, 0, 0)
+title.Size = UDim2.new(1, -60, 1, 0)
+title.Position = UDim2.new(0, 15, 0, 0)
 title.BackgroundTransparency = 1
 title.Text = 'Lunaa'
-title.Font = Enum.Font.GothamBold
-title.TextSize = 16
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 20
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = header
 
 local titleGrad = Instance.new("UIGradient", title)
 titleGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(220, 150, 255)), -- Tím nhạt
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 0, 200))    -- Tím đậm
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(230, 180, 255)), 
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(140, 50, 255))    
 })
+titleGrad.Rotation = 90
 
--- Nút [-] / [^]
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0, 26, 0, 26)
-toggleBtn.Position = UDim2.new(1, -32, 0.5, -13)
+toggleBtn.Size = UDim2.new(0, 30, 0, 30)
+toggleBtn.Position = UDim2.new(1, -40, 0.5, -15)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(30, 20, 45)
-toggleBtn.Text = "[-]"
+toggleBtn.Text = "+"
 toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.TextSize = 12
+toggleBtn.TextSize = 18
 toggleBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
 toggleBtn.BorderSizePixel = 0
 toggleBtn.AutoButtonColor = false
 toggleBtn.Parent = header
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 4)
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 local toggleStroke = Instance.new("UIStroke", toggleBtn)
 toggleStroke.Color = Color3.fromRGB(150, 50, 255)
 toggleStroke.Thickness = 1
 
+toggleBtn.MouseEnter:Connect(function() TweenService:Create(toggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 30, 75)}):Play() end)
+toggleBtn.MouseLeave:Connect(function() TweenService:Create(toggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 20, 45)}):Play() end)
+
 local body = Instance.new("Frame")
 body.Size = UDim2.new(1, 0, 0, 0)
-body.Position = UDim2.new(0, 0, 0, 36)
+body.Position = UDim2.new(0, 0, 0, 40)
 body.BackgroundTransparency = 1
 body.ClipsDescendants = true
 body.Parent = main
 
---══════════════════════ [9] NÚT BẤM & HIGHLIGHT ══════════════════════
+--────────────────────── TẠO NÚT BẤM ──────────────────────
 local function mkBtn(text, posY)
     local b = Instance.new("TextButton")
-    b.Size = UDim2.new(1, -16, 0, 28)
+    b.Size = UDim2.new(1, -24, 0, 32)
     b.Position = UDim2.new(0.5, 0, 0, posY)
     b.AnchorPoint = Vector2.new(0.5, 0)
     b.BackgroundColor3 = Color3.fromRGB(25, 15, 40)
     b.Text = text
-    b.Font = Enum.Font.GothamSemibold
-    b.TextSize = 13
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 14
     b.TextColor3 = Color3.fromRGB(220, 180, 255)
     b.BorderSizePixel = 0
     b.AutoButtonColor = false
     b.Parent = body
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
 
     local bStroke = Instance.new("UIStroke", b)
     bStroke.Color = Color3.fromRGB(150, 50, 255)
     bStroke.Thickness = 1
-    bStroke.Transparency = 0.3
+    bStroke.Transparency = 0.4
 
     local bGrad = Instance.new("UIGradient", bStroke)
     bGrad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)), -- Xanh dương
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 0, 255))  -- Tím
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)), 
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 0, 255))  
     })
-    bGrad.Enabled = false -- Tắt mặc định (chỉ bật khi hover/active)
+    bGrad.Enabled = false
 
-    -- Hover (Xanh -> Tím)
     b.MouseEnter:Connect(function()
         TweenService:Create(bStroke, TweenInfo.new(0.2), {Thickness = 2, Transparency = 0}):Play()
-        TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 25, 80)}):Play()
+        TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 25, 70)}):Play()
         bGrad.Enabled = true
     end)
     b.MouseLeave:Connect(function()
         if not b:GetAttribute("Active") then
-            TweenService:Create(bStroke, TweenInfo.new(0.2), {Thickness = 1, Transparency = 0.3}):Play()
+            TweenService:Create(bStroke, TweenInfo.new(0.2), {Thickness = 1, Transparency = 0.4}):Play()
             TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 15, 40)}):Play()
             bGrad.Enabled = false
         end
     end)
-
-    -- Lưu trạng thái Active để xử lý logic
     b:SetAttribute("Active", false)
     return b
 end
 
-local lineBtn = mkBtn("Lunaa Line", 6)
-local tweenBtn = mkBtn("Tween Lunaa", 38)
+local lineBtn = mkBtn("Lunaa Line", 10)
+local tweenBtn = mkBtn("Tween Lunaa", 48)
 
---══════════════════════ [10] SETTINGS (CHỈNH TỐC ĐỘ) ══════════════════════
+--────────────────────── CÀI ĐẶT TỐC ĐỘ ──────────────────────
 local settingsRow = Instance.new("Frame")
-settingsRow.Size = UDim2.new(1, -16, 0, 28)
-settingsRow.Position = UDim2.new(0.5, 0, 0, 70)
+settingsRow.Size = UDim2.new(1, -24, 0, 32)
+settingsRow.Position = UDim2.new(0.5, 0, 0, 86)
 settingsRow.AnchorPoint = Vector2.new(0.5, 0)
 settingsRow.BackgroundColor3 = Color3.fromRGB(25, 15, 40)
 settingsRow.BorderSizePixel = 0
 settingsRow.Parent = body
-Instance.new("UICorner", settingsRow).CornerRadius = UDim.new(0, 4)
+Instance.new("UICorner", settingsRow).CornerRadius = UDim.new(0, 6)
 
 local rowStroke = Instance.new("UIStroke", settingsRow)
 rowStroke.Color = Color3.fromRGB(150, 50, 255)
 rowStroke.Thickness = 1
-rowStroke.Transparency = 0.3
+rowStroke.Transparency = 0.4
 
 local minusBtn = Instance.new("TextButton")
-minusBtn.Size = UDim2.new(0, 28, 1, 0)
+minusBtn.Size = UDim2.new(0, 32, 1, 0)
 minusBtn.Position = UDim2.new(0, 0, 0, 0)
 minusBtn.BackgroundColor3 = Color3.fromRGB(35, 20, 55)
 minusBtn.Text = "-"
 minusBtn.Font = Enum.Font.GothamBold
-minusBtn.TextSize = 18
+minusBtn.TextSize = 20
 minusBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
 minusBtn.BorderSizePixel = 0
 minusBtn.AutoButtonColor = false
 minusBtn.Parent = settingsRow
-Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0, 4)
+Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0, 6)
 
 local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1, -60, 1, 0)
-speedLabel.Position = UDim2.new(0, 28, 0, 0)
+speedLabel.Size = UDim2.new(1, -70, 1, 0)
+speedLabel.Position = UDim2.new(0, 32, 0, 0)
 speedLabel.BackgroundTransparency = 1
 speedLabel.Text = tostring(TWEEN_SPEED)
 speedLabel.Font = Enum.Font.GothamBold
-speedLabel.TextSize = 14
+speedLabel.TextSize = 15
 speedLabel.TextColor3 = Color3.fromRGB(220, 180, 255)
 speedLabel.Parent = settingsRow
 
 local plusBtn = Instance.new("TextButton")
-plusBtn.Size = UDim2.new(0, 28, 1, 0)
-plusBtn.Position = UDim2.new(1, -28, 0, 0)
+plusBtn.Size = UDim2.new(0, 32, 1, 0)
+plusBtn.Position = UDim2.new(1, -32, 0, 0)
 plusBtn.BackgroundColor3 = Color3.fromRGB(35, 20, 55)
 plusBtn.Text = "+"
 plusBtn.Font = Enum.Font.GothamBold
-plusBtn.TextSize = 18
+plusBtn.TextSize = 20
 plusBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
 plusBtn.BorderSizePixel = 0
 plusBtn.AutoButtonColor = false
 plusBtn.Parent = settingsRow
-Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 4)
+Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 6)
 
 local function changeSpeed(delta)
     TWEEN_SPEED = math.clamp(TWEEN_SPEED + delta, 20, 1000)
     speedLabel.Text = tostring(TWEEN_SPEED)
+    playBubble() -- Phát tiếng bỏng ỏng khi tăng/giảm
 end
 
 minusBtn.MouseButton1Click:Connect(function() changeSpeed(-10) end)
 plusBtn.MouseButton1Click:Connect(function() changeSpeed(10) end)
 
-minusBtn.MouseEnter:Connect(function() TweenService:Create(minusBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 25, 80)}):Play() end)
+minusBtn.MouseEnter:Connect(function() TweenService:Create(minusBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 30, 90)}):Play() end)
 minusBtn.MouseLeave:Connect(function() TweenService:Create(minusBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 20, 55)}):Play() end)
-plusBtn.MouseEnter:Connect(function() TweenService:Create(plusBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 25, 80)}):Play() end)
+plusBtn.MouseEnter:Connect(function() TweenService:Create(plusBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 30, 90)}):Play() end)
 plusBtn.MouseLeave:Connect(function() TweenService:Create(plusBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 20, 55)}):Play() end)
 
---══════════════════════ [11] LOGIC ĐÓNG/MỞ & KÉO THẢ ══════════════════════
+--══════════════════════ [6] LOGIC ĐÓNG/MỞ ══════════════════════
 local expanded = false
 toggleBtn.MouseButton1Click:Connect(function()
     expanded = not expanded
-    toggleBtn.Text = expanded and "[^]" or "[-]"
-    local targetH = expanded and 104 or 0 
+    toggleBtn.Text = expanded and "-" or "+"
+    playBubble() -- Tiếng bỏng ỏng khi mở/đóng
+    local targetH = expanded and 124 or 0 
     
-    TweenService:Create(body, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+    TweenService:Create(body, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
         {Size = UDim2.new(1, 0, 0, targetH)}):Play()
-    TweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
-        {Size = UDim2.new(0, 200, 0, 36 + targetH)}):Play()
+    TweenService:Create(main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+        {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
 end)
 
+-- Kéo thả
 local dragging, dragStart, startPos
 header.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
@@ -496,7 +505,7 @@ UIS.InputEnded:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
 end)
 
---══════════════════════ [12] LOGIC ESP LINE ══════════════════════
+--══════════════════════ [7] LOGIC ESP LINE ══════════════════════
 local lineOn, beam = false, nil
 local function getRoot()
     local c = player.Character
@@ -535,14 +544,17 @@ end
 
 lineBtn.MouseButton1Click:Connect(function()
     lineOn = not lineOn
+    playBubble() -- Tiếng bỏng ỏng khi bật/tắt Line
     if lineOn and setupLine() then
         lineBtn.Text = "Line [ON]"
         lineBtn.TextColor3 = Color3.fromRGB(0, 255, 255)
+        lineBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 100)
         lineBtn:SetAttribute("Active", true)
     else
         lineOn = false; clearLine()
         lineBtn.Text = "Lunaa Line"
         lineBtn.TextColor3 = Color3.fromRGB(220, 180, 255)
+        lineBtn.BackgroundColor3 = Color3.fromRGB(25, 15, 40)
         lineBtn:SetAttribute("Active", false)
     end
 end)
@@ -552,7 +564,7 @@ player.CharacterAdded:Connect(function(c)
     if lineOn then task.wait(0.2); setupLine() end
 end)
 
---══════════════════════ [13] LOGIC TWEEN LUNAA ══════════════════════
+--══════════════════════ [8] LOGIC TWEEN LUNAA ══════════════════════
 local activeTween, hum, origSpeed = nil, nil, nil
 local isTweening = false
 
@@ -569,6 +581,7 @@ local function stopTween()
     end
     tweenBtn.Text = "Tween Lunaa"
     tweenBtn.TextColor3 = Color3.fromRGB(220, 180, 255)
+    tweenBtn.BackgroundColor3 = Color3.fromRGB(25, 15, 40)
     tweenBtn:SetAttribute("Active", false)
 end
 
@@ -581,8 +594,10 @@ local function startTween()
     hum = h
     origSpeed = h.WalkSpeed
     isTweening = true
+    playBubble() -- Tiếng bỏng ỏng khi bay
     tweenBtn.Text = "Tweening..."
     tweenBtn.TextColor3 = Color3.fromRGB(0, 255, 255)
+    tweenBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 100)
     tweenBtn:SetAttribute("Active", true)
 
     h.WalkSpeed = 0
@@ -629,4 +644,4 @@ tweenBtn.MouseButton1Click:Connect(function()
 end)
 
 player.CharacterAdded:Connect(stopTween)
-print("[Lunaa] Loaded - Menu mở mặc định, màu Tím, có Anti-Stun & Skip Prompt.")
+print("[Lunaa] Đã cập nhật âm thanh Bỏng Ỏng (Bubble).")
