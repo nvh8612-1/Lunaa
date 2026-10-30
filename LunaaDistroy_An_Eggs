@@ -1,5 +1,5 @@
 --==================================================================
---  LUNAA — DELTA EXECUTOR (Fix OP Huge WeightBracket + Drag)
+--  LUNAA — DELTA EXECUTOR (Full Final + Tween Super V3)
 --==================================================================
 local Players             = game:GetService("Players")
 local RunService          = game:GetService("RunService")
@@ -280,11 +280,21 @@ task.spawn(function()
     end
 end)
 
---══════════════════════ [6] BIẾN TOÀN CỤC ══════════════════════
+--══════════════════════ [6] BIẾN TOÀN CỤC & CHỐNG ẨN MENU ══════════════════════
 local tweenSuperEnabled = false
 local opHugeEnabled = false
 local selectedZones = {} 
 local activeEggs = {} 
+local menuVisible = true
+
+local function parentGui(guiObj)
+    local success = pcall(function()
+        guiObj.Parent = gethui()
+    end)
+    if not success or not guiObj.Parent then
+        guiObj.Parent = playerGui
+    end
+end
 
 --══════════════════════ [7] HÀM TẠO NÚT CÓ HIỆU ỨNG KÍNH (GLARE) ══════════════════════
 local BASE_COLOR   = Color3.fromRGB(25, 15, 40)
@@ -387,7 +397,15 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.DisplayOrder = 999999 
 gui.Enabled = true 
-gui.Parent = playerGui 
+parentGui(gui)
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if gui and not gui.Parent then parentGui(gui) end
+        if gui and not gui.Enabled and menuVisible then gui.Enabled = true end
+    end
+end)
 
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, 220, 0, 40)
@@ -502,7 +520,14 @@ guiHidden.ResetOnSpawn = false
 guiHidden.IgnoreGuiInset = true
 guiHidden.DisplayOrder = 999998
 guiHidden.Enabled = false 
-guiHidden.Parent = playerGui 
+parentGui(guiHidden)
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if guiHidden and not guiHidden.Parent then parentGui(guiHidden) end
+    end
+end)
 
 local hMain = Instance.new("Frame")
 hMain.Size = UDim2.new(0, 220, 0, 40)
@@ -638,7 +663,7 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
---══════════════════════ [11] LOGIC OP HUGE (ĐÃ FIX WEIGHTBRACKET & X2 TEXT) ══════════════════════
+--══════════════════════ [11] LOGIC OP HUGE (70 STUDS + WEIGHT KG) ══════════════════════
 local function clearEggs()
     for _, data in ipairs(activeEggs) do
         if data.highlight then data.highlight:Destroy() end
@@ -654,29 +679,48 @@ local function scanEggs()
     local ZoneBuilds = Workspace:FindFirstChild("Build") and Workspace.Build:FindFirstChild("ZoneBuilds")
     if not ZoneBuilds then return end
 
+    local seenEggs = {}
+
     for _, zone in ipairs(ZoneBuilds:GetChildren()) do
         if selectedZones[zone.Name] then
             local eggsFolder = zone:FindFirstChild("Eggs")
             if eggsFolder then
-                for _, egg in ipairs(eggsFolder:GetChildren()) do
-                    if egg:IsA("Model") or egg:IsA("BasePart") then
-                        -- Kiểm tra xem có phải Huge không (Check Attribute hoặc StringValue)
-                        local isHuge = false
-                        local wb = egg:GetAttribute("WeightBracket")
-                        
-                        if wb == "HUGE" then
+                for _, obj in ipairs(eggsFolder:GetDescendants()) do
+                    local isHuge = false
+                    local wb = obj:GetAttribute("WeightBracket")
+                    
+                    if wb == "HUGE" then
+                        isHuge = true
+                    else
+                        local wbObj = obj:FindFirstChild("WeightBracket")
+                        if wbObj and wbObj:IsA("StringValue") and wbObj.Value == "HUGE" then
                             isHuge = true
+                        end
+                    end
+
+                    if isHuge then
+                        -- Lấy WeightKg
+                        local weightKg = 0
+                        local wkAttr = obj:GetAttribute("WeightKg")
+                        if wkAttr then
+                            weightKg = wkAttr
                         else
-                            -- Fallback nếu nó lưu dưới dạng Object StringValue
-                            local wbObj = egg:FindFirstChild("WeightBracket")
-                            if wbObj and wbObj:IsA("StringValue") and wbObj.Value == "HUGE" then
-                                isHuge = true
+                            local wkObj = obj:FindFirstChild("WeightKg")
+                            if wkObj and (wkObj:IsA("NumberValue") or wkObj:IsA("StringValue")) then
+                                weightKg = wkObj.Value
                             end
                         end
 
-                        if isHuge then
-                            -- Dọn dẹp UI HUGE cũ nếu có (chống hiện 2 chữ)
-                            for _, child in ipairs(egg:GetChildren()) do
+                        local targetModel = obj
+                        local parentModel = obj:FindFirstAncestorOfClass("Model")
+                        if parentModel and parentModel ~= eggsFolder and parentModel.Name ~= "Eggs" and parentModel.Name ~= zone.Name then
+                            targetModel = parentModel
+                        end
+
+                        if not seenEggs[targetModel] then
+                            seenEggs[targetModel] = true
+
+                            for _, child in ipairs(targetModel:GetChildren()) do
                                 if child.Name == "HugeHighlight" or child.Name == "HugeBillboard" then
                                     child:Destroy()
                                 end
@@ -687,32 +731,49 @@ local function scanEggs()
                             hl.FillTransparency = 1
                             hl.OutlineColor = Color3.new(1, 1, 1)
                             hl.OutlineTransparency = 0
-                            hl.Adornee = egg
-                            hl.Parent = egg
+                            hl.Adornee = targetModel
+                            hl.Parent = targetModel
                             hl.Enabled = false
 
                             local bb = Instance.new("BillboardGui")
                             bb.Name = "HugeBillboard"
-                            bb.Size = UDim2.new(0, 120, 0, 40)
+                            bb.Size = UDim2.new(0, 150, 0, 60) -- Tăng chiều cao để chứa 2 dòng
                             bb.StudsOffset = Vector3.new(0, 3, 0)
                             bb.AlwaysOnTop = true
-                            bb.Adornee = egg
+                            bb.Adornee = targetModel
                             bb.Enabled = false
 
-                            local txt = Instance.new("TextLabel")
-                            txt.Size = UDim2.new(1, 0, 1, 0)
-                            txt.BackgroundTransparency = 1
-                            txt.Text = "HUGE"
-                            txt.TextColor3 = Color3.fromRGB(255, 255, 255)
-                            txt.TextStrokeTransparency = 0
-                            txt.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                            txt.Font = Enum.Font.GothamBlack
-                            txt.TextScaled = false 
-                            txt.TextSize = 22 
-                            txt.Parent = bb
-                            bb.Parent = egg
+                            -- Dòng 1: WeightKg (Nằm trên)
+                            local txtWeight = Instance.new("TextLabel")
+                            txtWeight.Size = UDim2.new(1, 0, 0.5, 0)
+                            txtWeight.Position = UDim2.new(0, 0, 0, 0)
+                            txtWeight.BackgroundTransparency = 1
+                            txtWeight.Text = tostring(weightKg) .. "KG"
+                            txtWeight.TextColor3 = Color3.fromRGB(255, 255, 255)
+                            txtWeight.TextStrokeTransparency = 0
+                            txtWeight.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                            txtWeight.Font = Enum.Font.GothamBlack
+                            txtWeight.TextScaled = false 
+                            txtWeight.TextSize = 20 
+                            txtWeight.Parent = bb
 
-                            table.insert(activeEggs, {egg = egg, highlight = hl, billboard = bb})
+                            -- Dòng 2: HUGE (Nằm dưới)
+                            local txtHuge = Instance.new("TextLabel")
+                            txtHuge.Size = UDim2.new(1, 0, 0.5, 0)
+                            txtHuge.Position = UDim2.new(0, 0, 0.5, 0)
+                            txtHuge.BackgroundTransparency = 1
+                            txtHuge.Text = "HUGE"
+                            txtHuge.TextColor3 = Color3.fromRGB(255, 255, 255)
+                            txtHuge.TextStrokeTransparency = 0
+                            txtHuge.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                            txtHuge.Font = Enum.Font.GothamBlack
+                            txtHuge.TextScaled = false 
+                            txtHuge.TextSize = 22 
+                            txtHuge.Parent = bb
+
+                            bb.Parent = targetModel
+
+                            table.insert(activeEggs, {egg = targetModel, highlight = hl, billboard = bb})
                         end
                     end
                 end
@@ -731,7 +792,8 @@ task.spawn(function()
                 if data.egg and data.egg.Parent then
                     local eggPos = data.egg:GetPivot().Position
                     local dist = (hrp.Position - eggPos).Magnitude
-                    local shouldShow = dist <= 30
+                    -- Tăng khoảng cách hiển thị lên 70 studs
+                    local shouldShow = dist <= 70
                     
                     if data.highlight then data.highlight.Enabled = shouldShow end
                     if data.billboard then data.billboard.Enabled = shouldShow end
@@ -811,8 +873,9 @@ local function checkChat(msgText)
     if type(msgText) ~= "string" then return end
     local text = msgText:lower():match("^%s*(.-)%s*$")
     if text == CHAT_MAIN then
-        gui.Enabled = not gui.Enabled
-        guiHidden.Enabled = gui.Enabled and expanded
+        menuVisible = not menuVisible
+        gui.Enabled = menuVisible
+        guiHidden.Enabled = menuVisible and expanded
     end
 end
 
@@ -825,7 +888,7 @@ if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
 end
 player.Chatted:Connect(checkChat)
 
---══════════════════════ [15] LOGIC TWEEN LUNAA & LINE ══════════════════════
+--══════════════════════ [15] LOGIC TWEEN LUNAA & LINE (CẬP NHẬT TWEEN SUPER V3) ══════════════════════
 local activeTween, hum, origSpeed = nil, nil, nil
 local isTweening = false
 
@@ -865,17 +928,40 @@ local function startTween()
             local distance = (targetPos - r.Position).Magnitude
             
             if tweenSuperEnabled then
-                local direction = (targetPos - r.Position).Unit
                 local traveled = 0
                 while traveled < distance do
                     if not isTweening then return end
-                    local step = math.min(10, distance - traveled)
-                    local stepTarget = r.Position + direction * step
-                    local ti = TweenInfo.new(step / TWEEN_SPEED, Enum.EasingStyle.Linear)
+                    
+                    local cPos = r.Position
+                    local dir = (targetPos - cPos).Unit
+                    
+                    -- BƯỚC 1: Tween 0.8s với speed
+                    local tweenDist = TWEEN_SPEED * 0.8
+                    if traveled + tweenDist > distance then
+                        tweenDist = distance - traveled
+                    end
+                    
+                    local stepTarget = cPos + dir * tweenDist
+                    local ti = TweenInfo.new(0.8, Enum.EasingStyle.Linear)
                     local t = TweenService:Create(r, ti, {CFrame = CFrame.new(stepTarget)})
+                    activeTween = t
                     t:Play()
                     t.Completed:Wait()
-                    traveled += step
+                    
+                    traveled += tweenDist
+                    if traveled >= distance - 1 then break end
+                    
+                    -- BƯỚC 2: TP 80 studs (Đã tăng)
+                    cPos = r.Position
+                    dir = (targetPos - cPos).Unit
+                    local tpDist = math.min(80, distance - traveled)
+                    r.CFrame = r.CFrame + (dir * tpDist)
+                    
+                    traveled += tpDist
+                    if traveled >= distance - 1 then break end
+                    
+                    -- BƯỚC 3: Dừng 0.3s (Đã giảm)
+                    task.wait(0.3)
                 end
             else
                 local ti = TweenInfo.new(distance / TWEEN_SPEED, Enum.EasingStyle.Linear)
@@ -944,7 +1030,7 @@ end)
 
 player.CharacterAdded:Connect(stopTween)
 
--- Gắn nút Toggle Menu Chính
+-- Toggle Menu Chính
 local expanded = false
 toggleBtn.MouseButton1Click:Connect(function()
     expanded = not expanded
@@ -956,4 +1042,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     guiHidden.Enabled = expanded
 end)
 
-print("[Lunaa] Loaded - WeightBracket Checked & Fixed Double HUGE.")
+print("[Lunaa] Loaded Full - 80 Studs TP + 0.3s Wait.")
