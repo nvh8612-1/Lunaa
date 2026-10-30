@@ -1,5 +1,5 @@
 --==================================================================
---  LUNAA — DELTA EXECUTOR (Full + Smooth Glare + OP Huge)
+--  LUNAA — DELTA EXECUTOR (Click Mọi Nơi + Menu Hide)
 --==================================================================
 local Players             = game:GetService("Players")
 local RunService          = game:GetService("RunService")
@@ -26,7 +26,66 @@ local KeepEggs     = true
 local ChickenOnlyAnimSaves = true
 --==================================================================
 
---══════════════════════ [0] ÂM THANH CLICK IPHONE ══════════════════════
+--══════════════════════ [0] CHỨC NĂNG ẨN: FIX LAG / BOOST FPS ══════════════════════
+task.spawn(function()
+    pcall(function()
+        local Lighting = game:GetService("Lighting")
+        local function optimize(obj)
+            pcall(function()
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                    obj.Enabled = false
+                elseif obj:IsA("Explosion") then
+                    obj.BlastPressure = 0
+                    obj.BlastRadius = 0
+                elseif obj:IsA("BasePart") then
+                    obj.CastShadow = false
+                    obj.Material = Enum.Material.SmoothPlastic
+                    obj.Reflectance = 0
+                elseif obj:IsA("Texture") or obj:IsA("Decal") then
+                    obj.Texture = ""
+                elseif obj:IsA("MeshPart") then
+                    obj.TextureID = ""
+                elseif obj:IsA("SpecialMesh") then
+                    obj.TextureId = ""
+                elseif obj:IsA("SurfaceAppearance") then
+                    obj:Destroy()
+                end
+            end)
+        end
+
+        pcall(function()
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 9e9
+            Lighting.Brightness = 1
+            Lighting.EnvironmentDiffuseScale = 0
+            Lighting.EnvironmentSpecularScale = 0
+            for _, effect in ipairs(Lighting:GetChildren()) do
+                if effect:IsA("BloomEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") or effect:IsA("DepthOfFieldEffect") or effect:IsA("BlurEffect") then
+                    effect.Enabled = false
+                end
+            end
+        end)
+
+        pcall(function()
+            local Terrain = Workspace.Terrain
+            Terrain.WaterWaveSize = 0
+            Terrain.WaterWaveSpeed = 0
+            Terrain.WaterReflectance = 0
+            Terrain.WaterTransparency = 1
+        end)
+
+        for _, obj in ipairs(game:GetDescendants()) do optimize(obj) end
+
+        if not getgenv().FTGS_FixLagConnection then
+            getgenv().FTGS_FixLagConnection = game.DescendantAdded:Connect(function(obj)
+                task.defer(function() optimize(obj) end)
+            end)
+        end
+        pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+    end)
+end)
+
+--══════════════════════ [1] ÂM THANH CLICK (BẤM ĐÂU CŨNG KÊU) ══════════════════════
 local function playClick()
     local s = Instance.new("Sound")
     s.SoundId = CLICK_ID
@@ -37,7 +96,15 @@ local function playClick()
     s.Ended:Connect(function() s:Destroy() end)
 end
 
---══════════════════════ [1] ANTI STUN & KNOCKBACK ══════════════════════
+-- Bắt sự kiện click/chạm toàn màn hình
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 
+    or input.UserInputType == Enum.UserInputType.Touch then
+        playClick()
+    end
+end)
+
+--══════════════════════ [2] ANTI STUN & KNOCKBACK ══════════════════════
 local antiStun = true
 local knockbackRunning = false
 local knockbackConn = nil
@@ -141,7 +208,7 @@ RunService.Stepped:Connect(function()
     end)
 end)
 
---══════════════════════ [2] SKIP PROMPT (CHỈ HOLD = 0) ══════════════════════
+--══════════════════════ [3] SKIP PROMPT (CHỈ HOLD = 0) ══════════════════════
 local function setupPrompt(prompt)
     if prompt:IsA("ProximityPrompt") then
         prompt.HoldDuration = 0
@@ -150,7 +217,7 @@ end
 for _, v in ipairs(Workspace:GetDescendants()) do setupPrompt(v) end
 Workspace.DescendantAdded:Connect(setupPrompt)
 
---══════════════════════ [3] NOCLIP + SÀN TÀNG HÌNH ══════════════════════
+--══════════════════════ [4] NOCLIP + SÀN TÀNG HÌNH ══════════════════════
 local invisibleFloor = Instance.new("Part")
 invisibleFloor.Name = "LunaaInvisibleFloor"
 invisibleFloor.Size = Vector3.new(10, 1, 10)
@@ -177,7 +244,7 @@ player.CharacterAdded:Connect(function(char)
     if invisibleFloor then invisibleFloor.Parent = Workspace end
 end)
 
---══════════════════════ [4] CLEANER CHẠY NGẦM ══════════════════════
+--══════════════════════ [5] CLEANER CHẠY NGẦM ══════════════════════
 task.spawn(function()
     local Build = Workspace:WaitForChild("Build", 30)
     if not Build then return end
@@ -215,30 +282,28 @@ task.spawn(function()
     end
 end)
 
---══════════════════════ [5] BIẾN TOÀN CỤC ══════════════════════
+--══════════════════════ [6] BIẾN TOÀN CỤC ══════════════════════
 local tweenSuperEnabled = false
 local opHugeEnabled = false
 local selectedZones = {} 
 local activeEggs = {} 
 
---══════════════════════ [6] HÀM TẠO NÚT CÓ HIỆU ỨNG KÍNH (GLARE) ══════════════════════
+--══════════════════════ [7] HÀM TẠO NÚT CÓ HIỆU ỨNG KÍNH (GLARE) ══════════════════════
 local BASE_COLOR   = Color3.fromRGB(25, 15, 40)
 local ACTIVE_COLOR = Color3.fromRGB(8, 5, 12)
 local HOVER_COLOR  = Color3.fromRGB(35, 20, 55)
 
--- Đã fix tốc độ lướt chậm và trong suốt hơn
 local function playGlare(btn)
     if not btn:GetAttribute("Active") then return end
     local glare = btn:FindFirstChild("Glare")
     if not glare then return end
     
     glare.Position = UDim2.new(0, -150, -0.5, 0)
-    -- Tăng thời gian lên 3 giây, dùng easing Sine cho mượt
     local tw = TweenService:Create(glare, TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(1, 150, -0.5, 0)})
     tw:Play()
     tw.Completed:Connect(function()
         if btn:GetAttribute("Active") then
-            task.wait(0.8) -- Nghỉ lâu hơn xíu trước khi lướt lại
+            task.wait(0.8)
             playGlare(btn)
         end
     end)
@@ -266,7 +331,6 @@ local function mkBtn(text, posY, parent)
     bStroke.Thickness = 1
     bStroke.Transparency = 0.4
 
-    -- Vệt kính mỏng hơn và trong suốt hơn
     local glare = Instance.new("Frame")
     glare.Name = "Glare"
     glare.Size = UDim2.new(0, 30, 2.5, 0) 
@@ -281,7 +345,7 @@ local function mkBtn(text, posY, parent)
     gGrad.Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 1),
         NumberSequenceKeypoint.new(0.3, 1),
-        NumberSequenceKeypoint.new(0.5, 0.75), -- Tăng độ trong suốt (mờ hơn)
+        NumberSequenceKeypoint.new(0.5, 0.75),
         NumberSequenceKeypoint.new(0.7, 1),
         NumberSequenceKeypoint.new(1, 1)
     })
@@ -314,15 +378,14 @@ local function setBtnActive(btn, isActive)
     end
 end
 
---══════════════════════ [7] MENU CHÍNH ══════════════════════
+--══════════════════════ [8] MENU CHÍNH ══════════════════════
 local gui = Instance.new("ScreenGui")
 gui.Name = "LunaaMain"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.DisplayOrder = 999999 
 gui.Enabled = true 
-local success = pcall(function() gui.Parent = game:GetService("CoreGui") end)
-if not success or not gui.Parent then gui.Parent = playerGui end
+gui.Parent = playerGui 
 
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, 220, 0, 40)
@@ -383,7 +446,6 @@ body.Parent = main
 local lineBtn = mkBtn("Lunaa Line", 10, body)
 local tweenBtn = mkBtn("Tween Lunaa", 48, body)
 
--- Settings Tốc Độ Menu Chính
 local settingsRow = Instance.new("Frame")
 settingsRow.Size = UDim2.new(1, -24, 0, 32)
 settingsRow.Position = UDim2.new(0.5, 0, 0, 86)
@@ -428,28 +490,26 @@ plusBtn.AutoButtonColor = false
 plusBtn.Parent = settingsRow
 Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 6)
 
-minusBtn.MouseButton1Click:Connect(function() TWEEN_SPEED = math.clamp(TWEEN_SPEED - 10, 20, 1000); speedLabel.Text = tostring(TWEEN_SPEED); playClick() end)
-plusBtn.MouseButton1Click:Connect(function() TWEEN_SPEED = math.clamp(TWEEN_SPEED + 10, 20, 1000); speedLabel.Text = tostring(TWEEN_SPEED); playClick() end)
+minusBtn.MouseButton1Click:Connect(function() TWEEN_SPEED = math.clamp(TWEEN_SPEED - 10, 20, 1000); speedLabel.Text = tostring(TWEEN_SPEED) end)
+plusBtn.MouseButton1Click:Connect(function() TWEEN_SPEED = math.clamp(TWEEN_SPEED + 10, 20, 1000); speedLabel.Text = tostring(TWEEN_SPEED) end)
 
 local expanded = false
 toggleBtn.MouseButton1Click:Connect(function()
     expanded = not expanded
     toggleBtn.Text = expanded and "-" or "+"
-    playClick()
     local targetH = expanded and 124 or 0 
     TweenService:Create(body, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
     TweenService:Create(main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
 end)
 
---══════════════════════ [8] MENU ẨN ══════════════════════
+--══════════════════════ [9] MENU ẨN (LUNAA HIDE) ══════════════════════
 local guiHidden = Instance.new("ScreenGui")
-guiHidden.Name = "LunaaHidden"
+guiHidden.Name = "LunaaHideGui"
 guiHidden.ResetOnSpawn = false
 guiHidden.IgnoreGuiInset = true
 guiHidden.DisplayOrder = 999998
 guiHidden.Enabled = false 
-local success2 = pcall(function() guiHidden.Parent = game:GetService("CoreGui") end)
-if not success2 or not guiHidden.Parent then guiHidden.Parent = playerGui end
+guiHidden.Parent = playerGui 
 
 local hMain = Instance.new("Frame")
 hMain.Size = UDim2.new(0, 220, 0, 40)
@@ -475,7 +535,7 @@ local hTitle = Instance.new("TextLabel")
 hTitle.Size = UDim2.new(1, -60, 1, 0)
 hTitle.Position = UDim2.new(0, 15, 0, 0)
 hTitle.BackgroundTransparency = 1
-hTitle.Text = 'Lunaa Hidden'
+hTitle.Text = 'Lunaa Hide' 
 hTitle.Font = Enum.Font.GothamBlack
 hTitle.TextSize = 18
 hTitle.TextColor3 = Color3.fromRGB(230, 180, 255)
@@ -507,7 +567,6 @@ hBody.Parent = hMain
 local tweenSuperBtn = mkBtn("Tween Super", 10, hBody)
 local opHugeBtn = mkBtn("OP Huge", 48, hBody)
 
--- Dropdown
 local dropBtn = mkBtn("▼ Select Zones", 86, hBody)
 local dropFrame = Instance.new("ScrollingFrame")
 dropFrame.Size = UDim2.new(1, -24, 0, 100)
@@ -532,14 +591,12 @@ local hExpanded = false
 hToggleBtn.MouseButton1Click:Connect(function()
     hExpanded = not hExpanded
     hToggleBtn.Text = hExpanded and "-" or "+"
-    playClick()
     local targetH = hExpanded and 230 or 0 
     TweenService:Create(hBody, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
     TweenService:Create(hMain, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
 end)
 
 dropBtn.MouseButton1Click:Connect(function()
-    playClick()
     dropFrame.Visible = not dropFrame.Visible
     if dropFrame.Visible then
         dropBtn.Text = "▲ Select Zones"
@@ -548,7 +605,7 @@ dropBtn.MouseButton1Click:Connect(function()
     end
 end)
 
---══════════════════════ [9] LOGIC OP HUGE ══════════════════════
+--══════════════════════ [10] LOGIC OP HUGE ══════════════════════
 local function clearEggs()
     for _, data in ipairs(activeEggs) do
         if data.highlight then data.highlight:Destroy() end
@@ -626,21 +683,19 @@ task.spawn(function()
     end
 end)
 
---══════════════════════ [10] TƯƠNG TÁC NÚT TWEEN SUPER & OP HUGE ══════════════════════
+--══════════════════════ [11] TƯƠNG TÁC NÚT TWEEN SUPER & OP HUGE ══════════════════════
 tweenSuperBtn.MouseButton1Click:Connect(function()
     tweenSuperEnabled = not tweenSuperEnabled
-    playClick()
     setBtnActive(tweenSuperBtn, tweenSuperEnabled)
 end)
 
 opHugeBtn.MouseButton1Click:Connect(function()
     opHugeEnabled = not opHugeEnabled
-    playClick()
     setBtnActive(opHugeBtn, opHugeEnabled)
     scanEggs()
 end)
 
---══════════════════════ [11] QUÉT VÀ TẠO DANH SÁCH ZONE ══════════════════════
+--══════════════════════ [12] QUÉT VÀ TẠO DANH SÁCH ZONE ══════════════════════
 task.spawn(function()
     local ZoneBuilds = Workspace:WaitForChild("Build", 10) and Workspace.Build:WaitForChild("ZoneBuilds", 10)
     if not ZoneBuilds then return end
@@ -693,9 +748,11 @@ task.spawn(function()
     dropFrame.CanvasSize = UDim2.new(0, 0, 0, dropLayout.AbsoluteContentSize.Y + 10)
 end)
 
---══════════════════════ [12] CHAT COMMAND ══════════════════════
-local function checkChat(msg)
-    local text = msg:lower():match("^%s*(.-)%s*$")
+--══════════════════════ [13] CHAT COMMAND ══════════════════════
+local function checkChat(msgText)
+    if type(msgText) ~= "string" then return end
+    local text = msgText:lower():match("^%s*(.-)%s*$")
+    
     if text == CHAT_HIDDEN then 
         guiHidden.Enabled = not guiHidden.Enabled
     elseif text == CHAT_MAIN then
@@ -710,9 +767,9 @@ if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
         end
     end)
 end
-pcall(function() player.Chatted:Connect(checkChat) end)
+player.Chatted:Connect(checkChat)
 
---══════════════════════ [13] LOGIC TWEEN LUNAA & LINE ══════════════════════
+--══════════════════════ [14] LOGIC TWEEN LUNAA & LINE ══════════════════════
 local activeTween, hum, origSpeed = nil, nil, nil
 local isTweening = false
 
@@ -736,7 +793,6 @@ local function startTween()
     hum = h
     origSpeed = h.WalkSpeed
     isTweening = true
-    playClick()
     setBtnActive(tweenBtn, true)
 
     h.WalkSpeed = 0
@@ -822,7 +878,6 @@ end
 
 lineBtn.MouseButton1Click:Connect(function()
     lineOn = not lineOn
-    playClick()
     if lineOn and setupLine() then
         setBtnActive(lineBtn, true)
     else
@@ -832,4 +887,4 @@ lineBtn.MouseButton1Click:Connect(function()
 end)
 
 player.CharacterAdded:Connect(stopTween)
-print("[Lunaa] Loaded - Smooth Glare updated.")
+print("[Lunaa] Loaded - Đã bật tiếng click mọi nơi.")
