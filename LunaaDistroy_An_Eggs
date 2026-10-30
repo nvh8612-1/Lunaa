@@ -1,5 +1,5 @@
 --==================================================================
---  LUNAA — DELTA EXECUTOR (Drag Menu + Click Mọi Nơi)
+--  LUNAA — DELTA EXECUTOR (Fix OP Huge WeightBracket + Drag)
 --==================================================================
 local Players             = game:GetService("Players")
 local RunService          = game:GetService("RunService")
@@ -506,7 +506,7 @@ guiHidden.Parent = playerGui
 
 local hMain = Instance.new("Frame")
 hMain.Size = UDim2.new(0, 220, 0, 40)
-hMain.Position = UDim2.new(1, -250, 0, 20) -- Nằm kế bên trái Lunaa
+hMain.Position = UDim2.new(1, -250, 0, 20) 
 hMain.AnchorPoint = Vector2.new(1, 0)     
 hMain.BackgroundColor3 = Color3.fromRGB(15, 10, 25) 
 hMain.BackgroundTransparency = 0.1
@@ -599,7 +599,6 @@ dropBtn.MouseButton1Click:Connect(function()
 end)
 
 --══════════════════════ [10] TÍNH NĂNG KÉO THẢ (DRAG) ══════════════════════
--- Kéo Menu Chính (kéo theo Menu Hide)
 local dragMain, dragStartMain, startPosMain, startPosHidden
 header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -610,7 +609,6 @@ header.InputBegan:Connect(function(input)
     end
 end)
 
--- Kéo riêng Menu Hide
 local dragHidden, dragStartHidden, startPosHiddenSolo
 hHeader.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -625,7 +623,6 @@ UIS.InputChanged:Connect(function(input)
         if dragMain then
             local delta = input.Position - dragStartMain
             main.Position = UDim2.new(startPosMain.X.Scale, startPosMain.X.Offset + delta.X, startPosMain.Y.Scale, startPosMain.Y.Offset + delta.Y)
-            -- Menu Hide chạy theo Menu Chính
             hMain.Position = UDim2.new(startPosHidden.X.Scale, startPosHidden.X.Offset + delta.X, startPosHidden.Y.Scale, startPosHidden.Y.Offset + delta.Y)
         elseif dragHidden then
             local delta = input.Position - dragStartHidden
@@ -641,7 +638,7 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
---══════════════════════ [11] LOGIC OP HUGE ══════════════════════
+--══════════════════════ [11] LOGIC OP HUGE (ĐÃ FIX WEIGHTBRACKET & X2 TEXT) ══════════════════════
 local function clearEggs()
     for _, data in ipairs(activeEggs) do
         if data.highlight then data.highlight:Destroy() end
@@ -663,35 +660,60 @@ local function scanEggs()
             if eggsFolder then
                 for _, egg in ipairs(eggsFolder:GetChildren()) do
                     if egg:IsA("Model") or egg:IsA("BasePart") then
-                        local hl = Instance.new("Highlight")
-                        hl.FillTransparency = 1
-                        hl.OutlineColor = Color3.new(1, 1, 1)
-                        hl.OutlineTransparency = 0
-                        hl.Adornee = egg
-                        hl.Parent = egg
-                        hl.Enabled = false
+                        -- Kiểm tra xem có phải Huge không (Check Attribute hoặc StringValue)
+                        local isHuge = false
+                        local wb = egg:GetAttribute("WeightBracket")
+                        
+                        if wb == "HUGE" then
+                            isHuge = true
+                        else
+                            -- Fallback nếu nó lưu dưới dạng Object StringValue
+                            local wbObj = egg:FindFirstChild("WeightBracket")
+                            if wbObj and wbObj:IsA("StringValue") and wbObj.Value == "HUGE" then
+                                isHuge = true
+                            end
+                        end
 
-                        local bb = Instance.new("BillboardGui")
-                        bb.Size = UDim2.new(0, 120, 0, 40)
-                        bb.StudsOffset = Vector3.new(0, 3, 0)
-                        bb.AlwaysOnTop = true
-                        bb.Adornee = egg
-                        bb.Enabled = false
+                        if isHuge then
+                            -- Dọn dẹp UI HUGE cũ nếu có (chống hiện 2 chữ)
+                            for _, child in ipairs(egg:GetChildren()) do
+                                if child.Name == "HugeHighlight" or child.Name == "HugeBillboard" then
+                                    child:Destroy()
+                                end
+                            end
 
-                        local txt = Instance.new("TextLabel")
-                        txt.Size = UDim2.new(1, 0, 1, 0)
-                        txt.BackgroundTransparency = 1
-                        txt.Text = "HUGE"
-                        txt.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        txt.TextStrokeTransparency = 0
-                        txt.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                        txt.Font = Enum.Font.GothamBlack
-                        txt.TextScaled = false 
-                        txt.TextSize = 22 
-                        txt.Parent = bb
-                        bb.Parent = egg
+                            local hl = Instance.new("Highlight")
+                            hl.Name = "HugeHighlight"
+                            hl.FillTransparency = 1
+                            hl.OutlineColor = Color3.new(1, 1, 1)
+                            hl.OutlineTransparency = 0
+                            hl.Adornee = egg
+                            hl.Parent = egg
+                            hl.Enabled = false
 
-                        table.insert(activeEggs, {egg = egg, highlight = hl, billboard = bb})
+                            local bb = Instance.new("BillboardGui")
+                            bb.Name = "HugeBillboard"
+                            bb.Size = UDim2.new(0, 120, 0, 40)
+                            bb.StudsOffset = Vector3.new(0, 3, 0)
+                            bb.AlwaysOnTop = true
+                            bb.Adornee = egg
+                            bb.Enabled = false
+
+                            local txt = Instance.new("TextLabel")
+                            txt.Size = UDim2.new(1, 0, 1, 0)
+                            txt.BackgroundTransparency = 1
+                            txt.Text = "HUGE"
+                            txt.TextColor3 = Color3.fromRGB(255, 255, 255)
+                            txt.TextStrokeTransparency = 0
+                            txt.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                            txt.Font = Enum.Font.GothamBlack
+                            txt.TextScaled = false 
+                            txt.TextSize = 22 
+                            txt.Parent = bb
+                            bb.Parent = egg
+
+                            table.insert(activeEggs, {egg = egg, highlight = hl, billboard = bb})
+                        end
                     end
                 end
             end
@@ -931,8 +953,7 @@ toggleBtn.MouseButton1Click:Connect(function()
     TweenService:Create(body, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
     TweenService:Create(main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
     
-    -- Bật/tắt Lunaa Hide theo Menu chính
     guiHidden.Enabled = expanded
 end)
 
-print("[Lunaa] Loaded - Drag & Drop 2 Menus Updated.")
+print("[Lunaa] Loaded - WeightBracket Checked & Fixed Double HUGE.")
