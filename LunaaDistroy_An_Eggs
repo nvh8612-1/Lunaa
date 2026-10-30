@@ -1,5 +1,5 @@
 --==================================================================
---  LUNAA — DELTA EXECUTOR (Click Mọi Nơi + Menu Hide)
+--  LUNAA — DELTA EXECUTOR (Fix Glare + Hide liên kết Menu)
 --==================================================================
 local Players             = game:GetService("Players")
 local RunService          = game:GetService("RunService")
@@ -17,7 +17,6 @@ local LINE_COLOR      = Color3.new(1, 1, 1)
 local TWEEN_SPEED     = 200 
 local CLICK_ID        = "rbxassetid://876939830"
 local CHAT_MAIN       = "st"
-local CHAT_HIDDEN     = "hi"
 
 -- Cấu hình Xóa Map (Cleaner)
 local KeepTopNames = { chilled = true, AnimSaves = true, Eggs = true }
@@ -96,7 +95,6 @@ local function playClick()
     s.Ended:Connect(function() s:Destroy() end)
 end
 
--- Bắt sự kiện click/chạm toàn màn hình
 UIS.InputBegan:Connect(function(input, gameProcessed)
     if input.UserInputType == Enum.UserInputType.MouseButton1 
     or input.UserInputType == Enum.UserInputType.Touch then
@@ -293,19 +291,27 @@ local BASE_COLOR   = Color3.fromRGB(25, 15, 40)
 local ACTIVE_COLOR = Color3.fromRGB(8, 5, 12)
 local HOVER_COLOR  = Color3.fromRGB(35, 20, 55)
 
-local function playGlare(btn)
-    if not btn:GetAttribute("Active") then return end
+-- Fix hiệu ứng lướt kính: chạy mượt, không đè nhau
+local function startGlare(btn)
     local glare = btn:FindFirstChild("Glare")
     if not glare then return end
-    
-    glare.Position = UDim2.new(0, -150, -0.5, 0)
-    local tw = TweenService:Create(glare, TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(1, 150, -0.5, 0)})
-    tw:Play()
-    tw.Completed:Connect(function()
-        if btn:GetAttribute("Active") then
-            task.wait(0.8)
-            playGlare(btn)
+    if btn:GetAttribute("GlareRunning") then return end
+    btn:SetAttribute("GlareRunning", true)
+    glare.Visible = true
+
+    task.spawn(function()
+        while btn:GetAttribute("Active") and btn:GetAttribute("GlareRunning") do
+            glare.Position = UDim2.new(0, -100, -0.5, 0)
+            local tw = TweenService:Create(glare, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(1, 100, -0.5, 0)})
+            tw:Play()
+            tw.Completed:Wait()
+            if btn:GetAttribute("Active") then
+                task.wait(0.8)
+            end
         end
+        glare.Visible = false
+        glare.Position = UDim2.new(0, -100, -0.5, 0)
+        btn:SetAttribute("GlareRunning", false)
     end)
 end
 
@@ -331,22 +337,24 @@ local function mkBtn(text, posY, parent)
     bStroke.Thickness = 1
     bStroke.Transparency = 0.4
 
+    -- Vệt kính (Glare)
     local glare = Instance.new("Frame")
     glare.Name = "Glare"
-    glare.Size = UDim2.new(0, 30, 2.5, 0) 
-    glare.Position = UDim2.new(0, -150, -0.5, 0)
+    glare.Size = UDim2.new(0, 20, 2.5, 0) 
+    glare.Position = UDim2.new(0, -100, -0.5, 0)
     glare.Rotation = 115 
     glare.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     glare.BorderSizePixel = 0
     glare.ZIndex = 2
+    glare.Visible = false
     glare.Parent = b
 
     local gGrad = Instance.new("UIGradient", glare)
     gGrad.Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 1),
-        NumberSequenceKeypoint.new(0.3, 1),
-        NumberSequenceKeypoint.new(0.5, 0.75),
-        NumberSequenceKeypoint.new(0.7, 1),
+        NumberSequenceKeypoint.new(0.4, 1),
+        NumberSequenceKeypoint.new(0.5, 0.85),
+        NumberSequenceKeypoint.new(0.6, 1),
         NumberSequenceKeypoint.new(1, 1)
     })
 
@@ -362,19 +370,15 @@ local function mkBtn(text, posY, parent)
     end)
     
     b:SetAttribute("Active", false)
+    b:SetAttribute("GlareRunning", false)
     return b
 end
 
 local function setBtnActive(btn, isActive)
     btn:SetAttribute("Active", isActive)
     TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = isActive and ACTIVE_COLOR or BASE_COLOR}):Play()
-    local glare = btn:FindFirstChild("Glare")
-    if glare then
-        if isActive then
-            playGlare(btn)
-        else
-            glare.Position = UDim2.new(0, -150, -0.5, 0)
-        end
+    if isActive then
+        startGlare(btn)
     end
 end
 
@@ -493,27 +497,18 @@ Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 6)
 minusBtn.MouseButton1Click:Connect(function() TWEEN_SPEED = math.clamp(TWEEN_SPEED - 10, 20, 1000); speedLabel.Text = tostring(TWEEN_SPEED) end)
 plusBtn.MouseButton1Click:Connect(function() TWEEN_SPEED = math.clamp(TWEEN_SPEED + 10, 20, 1000); speedLabel.Text = tostring(TWEEN_SPEED) end)
 
-local expanded = false
-toggleBtn.MouseButton1Click:Connect(function()
-    expanded = not expanded
-    toggleBtn.Text = expanded and "-" or "+"
-    local targetH = expanded and 124 or 0 
-    TweenService:Create(body, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
-    TweenService:Create(main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
-end)
-
 --══════════════════════ [9] MENU ẨN (LUNAA HIDE) ══════════════════════
 local guiHidden = Instance.new("ScreenGui")
 guiHidden.Name = "LunaaHideGui"
 guiHidden.ResetOnSpawn = false
 guiHidden.IgnoreGuiInset = true
 guiHidden.DisplayOrder = 999998
-guiHidden.Enabled = false 
+guiHidden.Enabled = false -- Mặc định ẩn (vì Menu chính đang đóng)
 guiHidden.Parent = playerGui 
 
 local hMain = Instance.new("Frame")
 hMain.Size = UDim2.new(0, 220, 0, 40)
-hMain.Position = UDim2.new(1, -20, 0, 280) 
+hMain.Position = UDim2.new(1, -20, 0, 70) -- Nằm ngay dưới menu chính
 hMain.AnchorPoint = Vector2.new(1, 0)     
 hMain.BackgroundColor3 = Color3.fromRGB(15, 10, 25) 
 hMain.BackgroundTransparency = 0.1
@@ -543,19 +538,6 @@ hTitle.TextXAlignment = Enum.TextXAlignment.Left
 hTitle.TextStrokeTransparency = 0.5
 hTitle.TextStrokeColor3 = Color3.fromRGB(80, 0, 150)
 hTitle.Parent = hHeader
-
-local hToggleBtn = Instance.new("TextButton")
-hToggleBtn.Size = UDim2.new(0, 30, 0, 30)
-hToggleBtn.Position = UDim2.new(1, -40, 0.5, -15)
-hToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 15, 40)
-hToggleBtn.Text = "+"
-hToggleBtn.Font = Enum.Font.GothamBold
-hToggleBtn.TextSize = 18
-hToggleBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
-hToggleBtn.BorderSizePixel = 0
-hToggleBtn.AutoButtonColor = false
-hToggleBtn.Parent = hHeader
-Instance.new("UICorner", hToggleBtn).CornerRadius = UDim.new(0, 6)
 
 local hBody = Instance.new("Frame")
 hBody.Size = UDim2.new(1, 0, 0, 0)
@@ -587,13 +569,20 @@ local dropPad = Instance.new("UIPadding", dropFrame)
 dropPad.PaddingTop = UDim.new(0, 4)
 dropPad.PaddingBottom = UDim.new(0, 4)
 
+-- Mở rộng Body của Lunaa Hide
 local hExpanded = false
-hToggleBtn.MouseButton1Click:Connect(function()
+local function toggleHiddenBody()
     hExpanded = not hExpanded
-    hToggleBtn.Text = hExpanded and "-" or "+"
     local targetH = hExpanded and 230 or 0 
     TweenService:Create(hBody, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
     TweenService:Create(hMain, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
+end
+
+-- Bấm vào Header của Hide để mở rộng (vì ko có nút +)
+hHeader.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        toggleHiddenBody()
+    end
 end)
 
 dropBtn.MouseButton1Click:Connect(function()
@@ -752,10 +741,7 @@ end)
 local function checkChat(msgText)
     if type(msgText) ~= "string" then return end
     local text = msgText:lower():match("^%s*(.-)%s*$")
-    
-    if text == CHAT_HIDDEN then 
-        guiHidden.Enabled = not guiHidden.Enabled
-    elseif text == CHAT_MAIN then
+    if text == CHAT_MAIN then
         gui.Enabled = not gui.Enabled
     end
 end
@@ -887,4 +873,18 @@ lineBtn.MouseButton1Click:Connect(function()
 end)
 
 player.CharacterAdded:Connect(stopTween)
-print("[Lunaa] Loaded - Đã bật tiếng click mọi nơi.")
+
+-- Gắn nút Toggle Menu Chính (để mở/đóng Menu Hide theo)
+local expanded = false
+toggleBtn.MouseButton1Click:Connect(function()
+    expanded = not expanded
+    toggleBtn.Text = expanded and "-" or "+"
+    local targetH = expanded and 124 or 0 
+    TweenService:Create(body, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
+    TweenService:Create(main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
+    
+    -- Bật/tắt Lunaa Hide theo Menu chính
+    guiHidden.Enabled = expanded
+end)
+
+print("[Lunaa] Loaded - Đã fix Glare và liên kết Lunaa Hide.")
