@@ -1,5 +1,5 @@
 --==================================================================
---  LUNAA — DELTA EXECUTOR (Full Final - Fix Line & Glare)
+--  LUNAA — DELTA EXECUTOR (Full Final - Beam Line)
 --==================================================================
 local Players             = game:GetService("Players")
 local RunService          = game:GetService("RunService")
@@ -13,7 +13,6 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 --====================== CONFIG =====================================
 local TARGET          = Vector3.new(-94, 3, 134)
-local LINE_COLOR      = Color3.new(1, 1, 1)
 local TWEEN_SPEED     = 200 
 local CLICK_ID        = "rbxassetid://876939830"
 local CHAT_MAIN       = "st"
@@ -84,7 +83,7 @@ task.spawn(function()
     end)
 end)
 
---══════════════════════ [1] ÂM THANH CLICK (BẤM ĐÂU CŨNG KÊU) ══════════════════════
+--══════════════════════ [1] ÂM THANH CLICK ══════════════════════
 local function playClick()
     local s = Instance.new("Sound")
     s.SoundId = CLICK_ID
@@ -196,10 +195,11 @@ end
 for _, v in ipairs(Workspace:GetDescendants()) do setupPrompt(v) end
 Workspace.DescendantAdded:Connect(setupPrompt)
 
---══════════════════════ [4] SÀN TÀNG HÌNH SIÊU TO + NOCLIP + CHỐNG RỚT ══════════════════════
+--══════════════════════ [4] SÀN TÀNG HÌNH (FIX LƠ LỬNG) ══════════════════════
 local superFloor = Instance.new("Part")
 superFloor.Name = "LunaaSuperFloor"
-superFloor.Size = Vector3.new(50, 103, 50) 
+superFloor.Size = Vector3.new(50, 1, 50) 
+superFloor.Position = Vector3.new(0, 2.5, 0) 
 superFloor.Transparency = 1
 superFloor.CanCollide = false 
 superFloor.Anchored = true
@@ -214,19 +214,14 @@ RunService.Stepped:Connect(function()
         
         local root = char:FindFirstChild("HumanoidRootPart")
         if root then
-            superFloor.CFrame = CFrame.new(root.Position.X, -48.5, root.Position.Z)
+            superFloor.CFrame = CFrame.new(root.Position.X, 2.5, root.Position.Z)
             
-            if root.Position.Y < 6 then
-                root.CFrame = CFrame.new(root.Position.X, 6, root.Position.Z)
+            if root.Position.Y < 3 then
+                root.CFrame = CFrame.new(root.Position.X, 3, root.Position.Z)
                 root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
             end
         end
     end
-end)
-
-player.CharacterAdded:Connect(function(char)
-    char:WaitForChild("HumanoidRootPart", 10)
-    if superFloor then superFloor.Parent = Workspace end
 end)
 
 --══════════════════════ [5] CLEANER CHẠY NGẦM ══════════════════════
@@ -283,7 +278,7 @@ local function parentGui(guiObj)
     end
 end
 
---══════════════════════ [7] HÀM TẠO NÚT CÓ HIỆU ỨNG KÍNH (GLARE - FIXED) ══════════════════════
+--══════════════════════ [7] HÀM TẠO NÚT (GLARE) ══════════════════════
 local BASE_COLOR   = Color3.fromRGB(25, 15, 40)
 local ACTIVE_COLOR = Color3.fromRGB(8, 5, 12)
 local HOVER_COLOR  = Color3.fromRGB(35, 20, 55)
@@ -296,17 +291,17 @@ local function startGlare(btn)
     glare.Visible = true
 
     task.spawn(function()
-        while btn:GetAttribute("Active") do
-            glare.Position = UDim2.new(0, -150, -0.5, 0)
-            local tw = TweenService:Create(glare, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {Position = UDim2.new(1, 150, -0.5, 0)})
+        while btn:GetAttribute("Active") and btn:GetAttribute("GlareRunning") do
+            glare.Position = UDim2.new(0, -100, -0.5, 0)
+            local tw = TweenService:Create(glare, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(1, 100, -0.5, 0)})
             tw:Play()
             tw.Completed:Wait()
             if btn:GetAttribute("Active") then
-                task.wait(0.5)
+                task.wait(0.8)
             end
         end
         glare.Visible = false
-        glare.Position = UDim2.new(0, -150, -0.5, 0)
+        glare.Position = UDim2.new(0, -100, -0.5, 0)
         btn:SetAttribute("GlareRunning", false)
     end)
 end
@@ -336,10 +331,10 @@ local function mkBtn(text, posY, parent)
     local glare = Instance.new("Frame")
     glare.Name = "Glare"
     glare.Size = UDim2.new(0, 15, 2, 0) 
-    glare.Position = UDim2.new(0, -150, -0.5, 0)
+    glare.Position = UDim2.new(0, -100, -0.5, 0)
     glare.Rotation = 115 
     glare.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    glare.BackgroundTransparency = 0.5 -- Độ mờ của vệt kính
+    glare.BackgroundTransparency = 0.5
     glare.BorderSizePixel = 0
     glare.ZIndex = 2
     glare.Visible = false
@@ -871,61 +866,63 @@ if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
 end
 player.Chatted:Connect(checkChat)
 
---══════════════════════ [15] LOGIC TWEEN LUNAA & LINE (FIXED LINE) ══════════════════════
+--══════════════════════ [15] LOGIC TWEEN LUNAA & LINE (BEAM) ══════════════════════
 local activeTween, hum, origSpeed = nil, nil, nil
 local isTweening = false
-
--- Fix Line: Dùng Part tàng hình thay vì Terrain
-local lineTargetPart = Instance.new("Part")
-lineTargetPart.Name = "LunaaLineTargetPart"
-lineTargetPart.Size = Vector3.new(1, 1, 1)
-lineTargetPart.Position = TARGET
-lineTargetPart.Transparency = 1
-lineTargetPart.Anchored = true
-lineTargetPart.CanCollide = false
-lineTargetPart.Parent = Workspace
-
-local lineTgtAtt = Instance.new("Attachment")
-lineTgtAtt.Parent = lineTargetPart
-lineTgtAtt.WorldPosition = TARGET
-
-local lineBeam = nil
 local lineOn = false
 
-local function getRoot()
-    local c = player.Character
-    if not c then return nil end
-    return c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("Torso")
-end
+-- Tạo Part mỏ neo ẩn tại tọa độ
+local anchorPart = Instance.new("Part")
+anchorPart.Name = "LunaaLineAnchor"
+anchorPart.Size = Vector3.new(1,1,1)
+anchorPart.Position = TARGET
+anchorPart.Anchored = true
+anchorPart.CanCollide = false
+anchorPart.Transparency = 1
+anchorPart.Parent = Workspace
 
-local function setupLine()
-    if lineBeam then lineBeam:Destroy() end
-    local r = getRoot(); if not r then return false end
-    
-    local a0 = Instance.new("Attachment")
-    a0.Name = "LunaaLineStartAttach"
-    a0.Parent = r
-    
-    lineBeam = Instance.new("Beam")
-    lineBeam.Attachment0 = a0
-    lineBeam.Attachment1 = lineTgtAtt
-    lineBeam.Color = ColorSequence.new(LINE_COLOR)
-    lineBeam.LightEmission = 1
-    lineBeam.LightInfluence = 0
-    lineBeam.Width0 = 0.2 
-    lineBeam.Width1 = 0.2
-    lineBeam.FaceCamera = true
-    lineBeam.Parent = r
-    return true
-end
+local anchorAttachment = Instance.new("Attachment")
+anchorAttachment.Parent = anchorPart
 
-local function clearLine()
-    if lineBeam then
-        local a0 = lineBeam.Attachment0
-        lineBeam:Destroy(); lineBeam = nil
-        if a0 then a0:Destroy() end
+local currentBeam = nil
+local charAttachment = nil
+
+local function updateLine()
+    if not lineOn then return end
+    local char = player.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    -- Nếu chưa có Attachment trên người thì tạo mới
+    if not charAttachment or charAttachment.Parent ~= root then
+        if charAttachment then charAttachment:Destroy() end
+        charAttachment = Instance.new("Attachment")
+        charAttachment.Name = "LunaaLineStart"
+        charAttachment.Parent = root
     end
+    
+    -- Nếu Beam chưa có thì tạo
+    if not currentBeam or currentBeam.Parent ~= root then
+        if currentBeam then currentBeam:Destroy() end
+        currentBeam = Instance.new("Beam")
+        currentBeam.Name = "LunaaLineBeam"
+        currentBeam.FaceCamera = true
+        currentBeam.AlwaysOnTop = true
+        currentBeam.Color = ColorSequence.new(Color3.new(1, 1, 1))
+        currentBeam.LightEmission = 1
+        currentBeam.LightInfluence = 0
+        currentBeam.Width0 = 0.2
+        currentBeam.Width1 = 0.2
+        currentBeam.Parent = root
+    end
+    
+    -- Cập nhật 2 đầu của Beam
+    currentBeam.Attachment0 = charAttachment
+    currentBeam.Attachment1 = anchorAttachment
 end
+
+RunService.RenderStepped:Connect(updateLine)
 
 local function stopTween()
     isTweening = false
@@ -1025,11 +1022,13 @@ end)
 
 lineBtn.MouseButton1Click:Connect(function()
     lineOn = not lineOn
-    if lineOn and setupLine() then
+    if lineOn then
         setBtnActive(lineBtn, true)
+        updateLine()
     else
-        lineOn = false; clearLine()
         setBtnActive(lineBtn, false)
+        if currentBeam then currentBeam:Destroy() currentBeam = nil end
+        if charAttachment then charAttachment:Destroy() charAttachment = nil end
     end
 end)
 
@@ -1037,7 +1036,7 @@ player.CharacterAdded:Connect(function()
     stopTween()
     if lineOn then
         task.wait(0.5)
-        setupLine()
+        updateLine()
     end
 end)
 
@@ -1053,4 +1052,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     guiHidden.Enabled = expanded
 end)
 
-print("[Lunaa] Loaded Full - Fixed Line & Glare.")
+print("[Lunaa] Loaded Full - Simple Beam Line.")
