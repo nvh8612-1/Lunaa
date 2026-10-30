@@ -1,5 +1,5 @@
 --==================================================================
---  LUNAA — DELTA EXECUTOR (Fix Glare + Hide liên kết Menu)
+--  LUNAA — DELTA EXECUTOR (Drag Menu + Click Mọi Nơi)
 --==================================================================
 local Players             = game:GetService("Players")
 local RunService          = game:GetService("RunService")
@@ -291,7 +291,6 @@ local BASE_COLOR   = Color3.fromRGB(25, 15, 40)
 local ACTIVE_COLOR = Color3.fromRGB(8, 5, 12)
 local HOVER_COLOR  = Color3.fromRGB(35, 20, 55)
 
--- Fix hiệu ứng lướt kính: chạy mượt, không đè nhau
 local function startGlare(btn)
     local glare = btn:FindFirstChild("Glare")
     if not glare then return end
@@ -337,7 +336,6 @@ local function mkBtn(text, posY, parent)
     bStroke.Thickness = 1
     bStroke.Transparency = 0.4
 
-    -- Vệt kính (Glare)
     local glare = Instance.new("Frame")
     glare.Name = "Glare"
     glare.Size = UDim2.new(0, 20, 2.5, 0) 
@@ -503,12 +501,12 @@ guiHidden.Name = "LunaaHideGui"
 guiHidden.ResetOnSpawn = false
 guiHidden.IgnoreGuiInset = true
 guiHidden.DisplayOrder = 999998
-guiHidden.Enabled = false -- Mặc định ẩn (vì Menu chính đang đóng)
+guiHidden.Enabled = false 
 guiHidden.Parent = playerGui 
 
 local hMain = Instance.new("Frame")
 hMain.Size = UDim2.new(0, 220, 0, 40)
-hMain.Position = UDim2.new(1, -20, 0, 70) -- Nằm ngay dưới menu chính
+hMain.Position = UDim2.new(1, -250, 0, 20) -- Nằm kế bên trái Lunaa
 hMain.AnchorPoint = Vector2.new(1, 0)     
 hMain.BackgroundColor3 = Color3.fromRGB(15, 10, 25) 
 hMain.BackgroundTransparency = 0.1
@@ -538,6 +536,19 @@ hTitle.TextXAlignment = Enum.TextXAlignment.Left
 hTitle.TextStrokeTransparency = 0.5
 hTitle.TextStrokeColor3 = Color3.fromRGB(80, 0, 150)
 hTitle.Parent = hHeader
+
+local hToggleBtn = Instance.new("TextButton")
+hToggleBtn.Size = UDim2.new(0, 30, 0, 30)
+hToggleBtn.Position = UDim2.new(1, -40, 0.5, -15)
+hToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 15, 40)
+hToggleBtn.Text = "+"
+hToggleBtn.Font = Enum.Font.GothamBold
+hToggleBtn.TextSize = 18
+hToggleBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+hToggleBtn.BorderSizePixel = 0
+hToggleBtn.AutoButtonColor = false
+hToggleBtn.Parent = hHeader
+Instance.new("UICorner", hToggleBtn).CornerRadius = UDim.new(0, 6)
 
 local hBody = Instance.new("Frame")
 hBody.Size = UDim2.new(1, 0, 0, 0)
@@ -569,20 +580,13 @@ local dropPad = Instance.new("UIPadding", dropFrame)
 dropPad.PaddingTop = UDim.new(0, 4)
 dropPad.PaddingBottom = UDim.new(0, 4)
 
--- Mở rộng Body của Lunaa Hide
 local hExpanded = false
-local function toggleHiddenBody()
+hToggleBtn.MouseButton1Click:Connect(function()
     hExpanded = not hExpanded
+    hToggleBtn.Text = hExpanded and "-" or "+"
     local targetH = hExpanded and 230 or 0 
     TweenService:Create(hBody, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
     TweenService:Create(hMain, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
-end
-
--- Bấm vào Header của Hide để mở rộng (vì ko có nút +)
-hHeader.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        toggleHiddenBody()
-    end
 end)
 
 dropBtn.MouseButton1Click:Connect(function()
@@ -594,7 +598,50 @@ dropBtn.MouseButton1Click:Connect(function()
     end
 end)
 
---══════════════════════ [10] LOGIC OP HUGE ══════════════════════
+--══════════════════════ [10] TÍNH NĂNG KÉO THẢ (DRAG) ══════════════════════
+-- Kéo Menu Chính (kéo theo Menu Hide)
+local dragMain, dragStartMain, startPosMain, startPosHidden
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragMain = true
+        dragStartMain = input.Position
+        startPosMain = main.Position
+        startPosHidden = hMain.Position
+    end
+end)
+
+-- Kéo riêng Menu Hide
+local dragHidden, dragStartHidden, startPosHiddenSolo
+hHeader.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragHidden = true
+        dragStartHidden = input.Position
+        startPosHiddenSolo = hMain.Position
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        if dragMain then
+            local delta = input.Position - dragStartMain
+            main.Position = UDim2.new(startPosMain.X.Scale, startPosMain.X.Offset + delta.X, startPosMain.Y.Scale, startPosMain.Y.Offset + delta.Y)
+            -- Menu Hide chạy theo Menu Chính
+            hMain.Position = UDim2.new(startPosHidden.X.Scale, startPosHidden.X.Offset + delta.X, startPosHidden.Y.Scale, startPosHidden.Y.Offset + delta.Y)
+        elseif dragHidden then
+            local delta = input.Position - dragStartHidden
+            hMain.Position = UDim2.new(startPosHiddenSolo.X.Scale, startPosHiddenSolo.X.Offset + delta.X, startPosHiddenSolo.Y.Scale, startPosHiddenSolo.Y.Offset + delta.Y)
+        end
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragMain = false
+        dragHidden = false
+    end
+end)
+
+--══════════════════════ [11] LOGIC OP HUGE ══════════════════════
 local function clearEggs()
     for _, data in ipairs(activeEggs) do
         if data.highlight then data.highlight:Destroy() end
@@ -672,7 +719,7 @@ task.spawn(function()
     end
 end)
 
---══════════════════════ [11] TƯƠNG TÁC NÚT TWEEN SUPER & OP HUGE ══════════════════════
+--══════════════════════ [12] TƯƠNG TÁC NÚT TWEEN SUPER & OP HUGE ══════════════════════
 tweenSuperBtn.MouseButton1Click:Connect(function()
     tweenSuperEnabled = not tweenSuperEnabled
     setBtnActive(tweenSuperBtn, tweenSuperEnabled)
@@ -684,7 +731,7 @@ opHugeBtn.MouseButton1Click:Connect(function()
     scanEggs()
 end)
 
---══════════════════════ [12] QUÉT VÀ TẠO DANH SÁCH ZONE ══════════════════════
+--══════════════════════ [13] QUÉT VÀ TẠO DANH SÁCH ZONE ══════════════════════
 task.spawn(function()
     local ZoneBuilds = Workspace:WaitForChild("Build", 10) and Workspace.Build:WaitForChild("ZoneBuilds", 10)
     if not ZoneBuilds then return end
@@ -737,12 +784,13 @@ task.spawn(function()
     dropFrame.CanvasSize = UDim2.new(0, 0, 0, dropLayout.AbsoluteContentSize.Y + 10)
 end)
 
---══════════════════════ [13] CHAT COMMAND ══════════════════════
+--══════════════════════ [14] CHAT COMMAND ══════════════════════
 local function checkChat(msgText)
     if type(msgText) ~= "string" then return end
     local text = msgText:lower():match("^%s*(.-)%s*$")
     if text == CHAT_MAIN then
         gui.Enabled = not gui.Enabled
+        guiHidden.Enabled = gui.Enabled and expanded
     end
 end
 
@@ -755,7 +803,7 @@ if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
 end
 player.Chatted:Connect(checkChat)
 
---══════════════════════ [14] LOGIC TWEEN LUNAA & LINE ══════════════════════
+--══════════════════════ [15] LOGIC TWEEN LUNAA & LINE ══════════════════════
 local activeTween, hum, origSpeed = nil, nil, nil
 local isTweening = false
 
@@ -874,7 +922,7 @@ end)
 
 player.CharacterAdded:Connect(stopTween)
 
--- Gắn nút Toggle Menu Chính (để mở/đóng Menu Hide theo)
+-- Gắn nút Toggle Menu Chính
 local expanded = false
 toggleBtn.MouseButton1Click:Connect(function()
     expanded = not expanded
@@ -887,4 +935,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     guiHidden.Enabled = expanded
 end)
 
-print("[Lunaa] Loaded - Đã fix Glare và liên kết Lunaa Hide.")
+print("[Lunaa] Loaded - Drag & Drop 2 Menus Updated.")
