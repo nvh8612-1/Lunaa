@@ -1,5 +1,5 @@
 --==================================================================
---  LUNAA — DELTA EXECUTOR (Full Final + Tween Super V3)
+--  LUNAA — DELTA EXECUTOR (Full Final - Fix Line & Glare)
 --==================================================================
 local Players             = game:GetService("Players")
 local RunService          = game:GetService("RunService")
@@ -187,25 +187,6 @@ end
 if player.Character then setupCharacter(player.Character) end
 player.CharacterAdded:Connect(setupCharacter)
 
-RunService.Stepped:Connect(function()
-    if not antiStun then return end
-    pcall(function()
-        local char = player.Character
-        if not char then return end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hum then
-            for _, motor in ipairs(char:GetDescendants()) do
-                if motor:IsA("Motor6D") and not motor.Enabled then motor.Enabled = true end
-            end
-            if hum.Sit then hum.Sit = false end
-            if hum.PlatformStand then hum.PlatformStand = false end
-            hum.AutoRotate = true
-        end
-        if hrp and hrp.Anchored then hrp.Anchored = false end
-    end)
-end)
-
 --══════════════════════ [3] SKIP PROMPT (CHỈ HOLD = 0) ══════════════════════
 local function setupPrompt(prompt)
     if prompt:IsA("ProximityPrompt") then
@@ -215,14 +196,14 @@ end
 for _, v in ipairs(Workspace:GetDescendants()) do setupPrompt(v) end
 Workspace.DescendantAdded:Connect(setupPrompt)
 
---══════════════════════ [4] NOCLIP + SÀN TÀNG HÌNH ══════════════════════
-local invisibleFloor = Instance.new("Part")
-invisibleFloor.Name = "LunaaInvisibleFloor"
-invisibleFloor.Size = Vector3.new(10, 1, 10)
-invisibleFloor.Transparency = 1
-invisibleFloor.CanCollide = true
-invisibleFloor.Anchored = true
-invisibleFloor.Parent = Workspace
+--══════════════════════ [4] SÀN TÀNG HÌNH SIÊU TO + NOCLIP + CHỐNG RỚT ══════════════════════
+local superFloor = Instance.new("Part")
+superFloor.Name = "LunaaSuperFloor"
+superFloor.Size = Vector3.new(50, 103, 50) 
+superFloor.Transparency = 1
+superFloor.CanCollide = false 
+superFloor.Anchored = true
+superFloor.Parent = Workspace
 
 RunService.Stepped:Connect(function()
     local char = player.Character
@@ -230,16 +211,22 @@ RunService.Stepped:Connect(function()
         for _, part in ipairs(char:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
         end
+        
         local root = char:FindFirstChild("HumanoidRootPart")
         if root then
-            invisibleFloor.CFrame = CFrame.new(root.Position.X, 3, root.Position.Z) - Vector3.new(0, 4, 0)
+            superFloor.CFrame = CFrame.new(root.Position.X, -48.5, root.Position.Z)
+            
+            if root.Position.Y < 6 then
+                root.CFrame = CFrame.new(root.Position.X, 6, root.Position.Z)
+                root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
+            end
         end
     end
 end)
 
 player.CharacterAdded:Connect(function(char)
     char:WaitForChild("HumanoidRootPart", 10)
-    if invisibleFloor then invisibleFloor.Parent = Workspace end
+    if superFloor then superFloor.Parent = Workspace end
 end)
 
 --══════════════════════ [5] CLEANER CHẠY NGẦM ══════════════════════
@@ -296,7 +283,7 @@ local function parentGui(guiObj)
     end
 end
 
---══════════════════════ [7] HÀM TẠO NÚT CÓ HIỆU ỨNG KÍNH (GLARE) ══════════════════════
+--══════════════════════ [7] HÀM TẠO NÚT CÓ HIỆU ỨNG KÍNH (GLARE - FIXED) ══════════════════════
 local BASE_COLOR   = Color3.fromRGB(25, 15, 40)
 local ACTIVE_COLOR = Color3.fromRGB(8, 5, 12)
 local HOVER_COLOR  = Color3.fromRGB(35, 20, 55)
@@ -309,17 +296,17 @@ local function startGlare(btn)
     glare.Visible = true
 
     task.spawn(function()
-        while btn:GetAttribute("Active") and btn:GetAttribute("GlareRunning") do
-            glare.Position = UDim2.new(0, -100, -0.5, 0)
-            local tw = TweenService:Create(glare, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(1, 100, -0.5, 0)})
+        while btn:GetAttribute("Active") do
+            glare.Position = UDim2.new(0, -150, -0.5, 0)
+            local tw = TweenService:Create(glare, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {Position = UDim2.new(1, 150, -0.5, 0)})
             tw:Play()
             tw.Completed:Wait()
             if btn:GetAttribute("Active") then
-                task.wait(0.8)
+                task.wait(0.5)
             end
         end
         glare.Visible = false
-        glare.Position = UDim2.new(0, -100, -0.5, 0)
+        glare.Position = UDim2.new(0, -150, -0.5, 0)
         btn:SetAttribute("GlareRunning", false)
     end)
 end
@@ -348,10 +335,11 @@ local function mkBtn(text, posY, parent)
 
     local glare = Instance.new("Frame")
     glare.Name = "Glare"
-    glare.Size = UDim2.new(0, 20, 2.5, 0) 
-    glare.Position = UDim2.new(0, -100, -0.5, 0)
+    glare.Size = UDim2.new(0, 15, 2, 0) 
+    glare.Position = UDim2.new(0, -150, -0.5, 0)
     glare.Rotation = 115 
     glare.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    glare.BackgroundTransparency = 0.5 -- Độ mờ của vệt kính
     glare.BorderSizePixel = 0
     glare.ZIndex = 2
     glare.Visible = false
@@ -360,9 +348,9 @@ local function mkBtn(text, posY, parent)
     local gGrad = Instance.new("UIGradient", glare)
     gGrad.Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 1),
-        NumberSequenceKeypoint.new(0.4, 1),
+        NumberSequenceKeypoint.new(0.3, 1),
         NumberSequenceKeypoint.new(0.5, 0.85),
-        NumberSequenceKeypoint.new(0.6, 1),
+        NumberSequenceKeypoint.new(0.7, 1),
         NumberSequenceKeypoint.new(1, 1)
     })
 
@@ -699,7 +687,6 @@ local function scanEggs()
                     end
 
                     if isHuge then
-                        -- Lấy WeightKg
                         local weightKg = 0
                         local wkAttr = obj:GetAttribute("WeightKg")
                         if wkAttr then
@@ -737,13 +724,12 @@ local function scanEggs()
 
                             local bb = Instance.new("BillboardGui")
                             bb.Name = "HugeBillboard"
-                            bb.Size = UDim2.new(0, 150, 0, 60) -- Tăng chiều cao để chứa 2 dòng
+                            bb.Size = UDim2.new(0, 150, 0, 60) 
                             bb.StudsOffset = Vector3.new(0, 3, 0)
                             bb.AlwaysOnTop = true
                             bb.Adornee = targetModel
                             bb.Enabled = false
 
-                            -- Dòng 1: WeightKg (Nằm trên)
                             local txtWeight = Instance.new("TextLabel")
                             txtWeight.Size = UDim2.new(1, 0, 0.5, 0)
                             txtWeight.Position = UDim2.new(0, 0, 0, 0)
@@ -757,7 +743,6 @@ local function scanEggs()
                             txtWeight.TextSize = 20 
                             txtWeight.Parent = bb
 
-                            -- Dòng 2: HUGE (Nằm dưới)
                             local txtHuge = Instance.new("TextLabel")
                             txtHuge.Size = UDim2.new(1, 0, 0.5, 0)
                             txtHuge.Position = UDim2.new(0, 0, 0.5, 0)
@@ -772,7 +757,6 @@ local function scanEggs()
                             txtHuge.Parent = bb
 
                             bb.Parent = targetModel
-
                             table.insert(activeEggs, {egg = targetModel, highlight = hl, billboard = bb})
                         end
                     end
@@ -792,7 +776,6 @@ task.spawn(function()
                 if data.egg and data.egg.Parent then
                     local eggPos = data.egg:GetPivot().Position
                     local dist = (hrp.Position - eggPos).Magnitude
-                    -- Tăng khoảng cách hiển thị lên 70 studs
                     local shouldShow = dist <= 70
                     
                     if data.highlight then data.highlight.Enabled = shouldShow end
@@ -888,9 +871,61 @@ if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
 end
 player.Chatted:Connect(checkChat)
 
---══════════════════════ [15] LOGIC TWEEN LUNAA & LINE (CẬP NHẬT TWEEN SUPER V3) ══════════════════════
+--══════════════════════ [15] LOGIC TWEEN LUNAA & LINE (FIXED LINE) ══════════════════════
 local activeTween, hum, origSpeed = nil, nil, nil
 local isTweening = false
+
+-- Fix Line: Dùng Part tàng hình thay vì Terrain
+local lineTargetPart = Instance.new("Part")
+lineTargetPart.Name = "LunaaLineTargetPart"
+lineTargetPart.Size = Vector3.new(1, 1, 1)
+lineTargetPart.Position = TARGET
+lineTargetPart.Transparency = 1
+lineTargetPart.Anchored = true
+lineTargetPart.CanCollide = false
+lineTargetPart.Parent = Workspace
+
+local lineTgtAtt = Instance.new("Attachment")
+lineTgtAtt.Parent = lineTargetPart
+lineTgtAtt.WorldPosition = TARGET
+
+local lineBeam = nil
+local lineOn = false
+
+local function getRoot()
+    local c = player.Character
+    if not c then return nil end
+    return c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("Torso")
+end
+
+local function setupLine()
+    if lineBeam then lineBeam:Destroy() end
+    local r = getRoot(); if not r then return false end
+    
+    local a0 = Instance.new("Attachment")
+    a0.Name = "LunaaLineStartAttach"
+    a0.Parent = r
+    
+    lineBeam = Instance.new("Beam")
+    lineBeam.Attachment0 = a0
+    lineBeam.Attachment1 = lineTgtAtt
+    lineBeam.Color = ColorSequence.new(LINE_COLOR)
+    lineBeam.LightEmission = 1
+    lineBeam.LightInfluence = 0
+    lineBeam.Width0 = 0.2 
+    lineBeam.Width1 = 0.2
+    lineBeam.FaceCamera = true
+    lineBeam.Parent = r
+    return true
+end
+
+local function clearLine()
+    if lineBeam then
+        local a0 = lineBeam.Attachment0
+        lineBeam:Destroy(); lineBeam = nil
+        if a0 then a0:Destroy() end
+    end
+end
 
 local function stopTween()
     isTweening = false
@@ -923,57 +958,63 @@ local function startTween()
         local midPos = Vector3.new(currentPos.X, startY, TARGET.Z)
         local finalPos = Vector3.new(TARGET.X, startY, TARGET.Z)
         
-        local function doMovement(targetPos)
-            if not isTweening then return end
-            local distance = (targetPos - r.Position).Magnitude
-            
+        -- BƯỚC 1: Tween ngang đến Z = 134
+        if (currentPos - midPos).Magnitude > 1 then
+            local dist1 = (currentPos - midPos).Magnitude
+            local ti = TweenInfo.new(dist1 / TWEEN_SPEED, Enum.EasingStyle.Linear)
+            local t = TweenService:Create(r, ti, {CFrame = CFrame.new(midPos)})
+            activeTween = t
+            t:Play()
+            t.Completed:Wait()
+        end
+
+        if not isTweening then return end
+
+        -- BƯỚC 2: Từ Z=134 đi đến X=-94
+        if (midPos - finalPos).Magnitude > 1 then
             if tweenSuperEnabled then
-                local traveled = 0
-                while traveled < distance do
+                while (finalPos - r.Position).Magnitude > 1 do
                     if not isTweening then return end
                     
                     local cPos = r.Position
-                    local dir = (targetPos - cPos).Unit
+                    local dir = (finalPos - cPos).Unit
                     
-                    -- BƯỚC 1: Tween 0.8s với speed
-                    local tweenDist = TWEEN_SPEED * 0.8
-                    if traveled + tweenDist > distance then
-                        tweenDist = distance - traveled
+                    -- 2.1: TP 80 studs
+                    local tpDist = math.min(80, (finalPos - cPos).Magnitude)
+                    r.CFrame = r.CFrame + (dir * tpDist)
+                    if (finalPos - r.Position).Magnitude <= 1 then break end
+                    
+                    -- 2.2: Dừng 0.2s
+                    task.wait(0.2)
+                    if not isTweening then return end
+                    
+                    -- 2.3: Tween 120 speed trong 0.5s
+                    local tSpeed = 120
+                    local tTime = 0.5
+                    local tDist = tSpeed * tTime
+                    
+                    if (finalPos - r.Position).Magnitude < tDist then
+                        tDist = (finalPos - r.Position).Magnitude
+                        tTime = tDist / tSpeed
                     end
                     
-                    local stepTarget = cPos + dir * tweenDist
-                    local ti = TweenInfo.new(0.8, Enum.EasingStyle.Linear)
+                    local stepTarget = r.Position + (dir * tDist)
+                    local ti = TweenInfo.new(tTime, Enum.EasingStyle.Linear)
                     local t = TweenService:Create(r, ti, {CFrame = CFrame.new(stepTarget)})
                     activeTween = t
                     t:Play()
                     t.Completed:Wait()
-                    
-                    traveled += tweenDist
-                    if traveled >= distance - 1 then break end
-                    
-                    -- BƯỚC 2: TP 80 studs (Đã tăng)
-                    cPos = r.Position
-                    dir = (targetPos - cPos).Unit
-                    local tpDist = math.min(80, distance - traveled)
-                    r.CFrame = r.CFrame + (dir * tpDist)
-                    
-                    traveled += tpDist
-                    if traveled >= distance - 1 then break end
-                    
-                    -- BƯỚC 3: Dừng 0.3s (Đã giảm)
-                    task.wait(0.3)
                 end
             else
-                local ti = TweenInfo.new(distance / TWEEN_SPEED, Enum.EasingStyle.Linear)
-                local t = TweenService:Create(r, ti, {CFrame = CFrame.new(targetPos)})
+                local dist2 = (midPos - finalPos).Magnitude
+                local ti = TweenInfo.new(dist2 / TWEEN_SPEED, Enum.EasingStyle.Linear)
+                local t = TweenService:Create(r, ti, {CFrame = CFrame.new(finalPos)})
                 activeTween = t
                 t:Play()
                 t.Completed:Wait()
             end
         end
-
-        if (currentPos - midPos).Magnitude > 1 then doMovement(midPos) end
-        if isTweening and (midPos - finalPos).Magnitude > 1 then doMovement(finalPos) end
+        
         if isTweening then stopTween() end
     end)
 end
@@ -981,42 +1022,6 @@ end
 tweenBtn.MouseButton1Click:Connect(function()
     if isTweening then stopTween() else startTween() end
 end)
-
--- Logic Line
-local lineOn, beam = false, nil
-local function getRoot()
-    local c = player.Character
-    if not c then return nil end
-    return c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("Torso")
-end
-local tgtAtt = Instance.new("Attachment")
-tgtAtt.WorldPosition = TARGET
-tgtAtt.Parent = Workspace.Terrain
-
-local function setupLine()
-    if beam then beam:Destroy() end
-    local r = getRoot(); if not r then return false end
-    local a0 = Instance.new("Attachment"); a0.Parent = r
-    beam = Instance.new("Beam")
-    beam.Attachment0 = a0
-    beam.Attachment1 = tgtAtt
-    beam.Color = ColorSequence.new(LINE_COLOR)
-    beam.LightEmission = 1
-    beam.LightInfluence = 0
-    beam.Width0 = 0.15 
-    beam.Width1 = 0.15
-    beam.FaceCamera = true
-    beam.Parent = r
-    return true
-end
-
-local function clearLine()
-    if beam then
-        local a0 = beam.Attachment0
-        beam:Destroy(); beam = nil
-        if a0 then a0:Destroy() end
-    end
-end
 
 lineBtn.MouseButton1Click:Connect(function()
     lineOn = not lineOn
@@ -1028,7 +1033,13 @@ lineBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-player.CharacterAdded:Connect(stopTween)
+player.CharacterAdded:Connect(function()
+    stopTween()
+    if lineOn then
+        task.wait(0.5)
+        setupLine()
+    end
+end)
 
 -- Toggle Menu Chính
 local expanded = false
@@ -1042,4 +1053,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     guiHidden.Enabled = expanded
 end)
 
-print("[Lunaa] Loaded Full - 80 Studs TP + 0.3s Wait.")
+print("[Lunaa] Loaded Full - Fixed Line & Glare.")
