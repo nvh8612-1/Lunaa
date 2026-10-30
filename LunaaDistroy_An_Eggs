@@ -1,5 +1,5 @@
 --==================================================================
---  LUNAA — DELTA EXECUTOR (Full + Glare Effect + OP Huge)
+--  LUNAA — DELTA EXECUTOR (Full + Smooth Glare + OP Huge)
 --==================================================================
 local Players             = game:GetService("Players")
 local RunService          = game:GetService("RunService")
@@ -17,7 +17,7 @@ local LINE_COLOR      = Color3.new(1, 1, 1)
 local TWEEN_SPEED     = 200 
 local CLICK_ID        = "rbxassetid://876939830"
 local CHAT_MAIN       = "st"
-local CHAT_HIDDEN     = "#"
+local CHAT_HIDDEN     = "hi"
 
 -- Cấu hình Xóa Map (Cleaner)
 local KeepTopNames = { chilled = true, AnimSaves = true, Eggs = true }
@@ -226,17 +226,19 @@ local BASE_COLOR   = Color3.fromRGB(25, 15, 40)
 local ACTIVE_COLOR = Color3.fromRGB(8, 5, 12)
 local HOVER_COLOR  = Color3.fromRGB(35, 20, 55)
 
+-- Đã fix tốc độ lướt chậm và trong suốt hơn
 local function playGlare(btn)
     if not btn:GetAttribute("Active") then return end
     local glare = btn:FindFirstChild("Glare")
     if not glare then return end
     
-    glare.Position = UDim2.new(0, -100, -0.5, 0)
-    local tw = TweenService:Create(glare, TweenInfo.new(0.8, Enum.EasingStyle.Linear), {Position = UDim2.new(1, 100, -0.5, 0)})
+    glare.Position = UDim2.new(0, -150, -0.5, 0)
+    -- Tăng thời gian lên 3 giây, dùng easing Sine cho mượt
+    local tw = TweenService:Create(glare, TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(1, 150, -0.5, 0)})
     tw:Play()
     tw.Completed:Connect(function()
         if btn:GetAttribute("Active") then
-            task.wait(0.3)
+            task.wait(0.8) -- Nghỉ lâu hơn xíu trước khi lướt lại
             playGlare(btn)
         end
     end)
@@ -255,7 +257,7 @@ local function mkBtn(text, posY, parent)
     b.TextStrokeTransparency = 0.8
     b.BorderSizePixel = 0
     b.AutoButtonColor = false
-    b.ClipsDescendants = true -- Để kính không tràn ra ngoài nút
+    b.ClipsDescendants = true 
     b.Parent = parent
     Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
     
@@ -264,13 +266,13 @@ local function mkBtn(text, posY, parent)
     bStroke.Thickness = 1
     bStroke.Transparency = 0.4
 
-    -- Ô kính trong suốt (Glare)
+    -- Vệt kính mỏng hơn và trong suốt hơn
     local glare = Instance.new("Frame")
     glare.Name = "Glare"
-    glare.Size = UDim2.new(0, 60, 2, 0)
-    glare.Position = UDim2.new(0, -100, -0.5, 0)
-    glare.Rotation = 115 -- Nghiêng 115 độ
-    glare.BackgroundColor3 = Color3.new(1, 1, 1)
+    glare.Size = UDim2.new(0, 30, 2.5, 0) 
+    glare.Position = UDim2.new(0, -150, -0.5, 0)
+    glare.Rotation = 115 
+    glare.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     glare.BorderSizePixel = 0
     glare.ZIndex = 2
     glare.Parent = b
@@ -278,7 +280,9 @@ local function mkBtn(text, posY, parent)
     local gGrad = Instance.new("UIGradient", glare)
     gGrad.Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 1),
-        NumberSequenceKeypoint.new(0.5, 0.4), -- Độ mờ của kính
+        NumberSequenceKeypoint.new(0.3, 1),
+        NumberSequenceKeypoint.new(0.5, 0.75), -- Tăng độ trong suốt (mờ hơn)
+        NumberSequenceKeypoint.new(0.7, 1),
         NumberSequenceKeypoint.new(1, 1)
     })
 
@@ -305,7 +309,7 @@ local function setBtnActive(btn, isActive)
         if isActive then
             playGlare(btn)
         else
-            glare.Position = UDim2.new(0, -100, -0.5, 0)
+            glare.Position = UDim2.new(0, -150, -0.5, 0)
         end
     end
 end
@@ -589,7 +593,6 @@ local function scanEggs()
                         txt.TextStrokeTransparency = 0
                         txt.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
                         txt.Font = Enum.Font.GothamBlack
-                        -- SỬA TẠI ĐÂY: Bỏ TextScaled, set TextSize = 22
                         txt.TextScaled = false 
                         txt.TextSize = 22 
                         txt.Parent = bb
@@ -693,7 +696,7 @@ end)
 --══════════════════════ [12] CHAT COMMAND ══════════════════════
 local function checkChat(msg)
     local text = msg:lower():match("^%s*(.-)%s*$")
-    if text == "#" then
+    if text == CHAT_HIDDEN then 
         guiHidden.Enabled = not guiHidden.Enabled
     elseif text == CHAT_MAIN then
         gui.Enabled = not gui.Enabled
@@ -829,4 +832,4 @@ lineBtn.MouseButton1Click:Connect(function()
 end)
 
 player.CharacterAdded:Connect(stopTween)
-print("[Lunaa] Loaded - Updated Glare Effect & OP Huge Size 22.")
+print("[Lunaa] Loaded - Smooth Glare updated.")
