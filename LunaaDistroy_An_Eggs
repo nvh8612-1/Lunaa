@@ -1,5 +1,5 @@
 --==================================================================
---  LUNAA — DELTA EXECUTOR (Clean UI - Bỏ hoàn toàn Highlight Xanh)
+--  LUNAA — DELTA EXECUTOR (Full + Glare Effect + OP Huge)
 --==================================================================
 local Players             = game:GetService("Players")
 local RunService          = game:GetService("RunService")
@@ -15,8 +15,9 @@ local playerGui = player:WaitForChild("PlayerGui")
 local TARGET          = Vector3.new(-94, 3, 134)
 local LINE_COLOR      = Color3.new(1, 1, 1)
 local TWEEN_SPEED     = 200 
-local CLICK_ID        = "rbxassetid://876939830" -- Tiếng gõ phím iPhone
-local CHAT_COMMAND    = "st"
+local CLICK_ID        = "rbxassetid://876939830"
+local CHAT_MAIN       = "st"
+local CHAT_HIDDEN     = "#"
 
 -- Cấu hình Xóa Map (Cleaner)
 local KeepTopNames = { chilled = true, AnimSaves = true, Eggs = true }
@@ -189,26 +190,19 @@ task.spawn(function()
         return i:FindFirstChild("AnimSaves", true) ~= nil
     end
 
-    local stats = { zones = 0, top = 0, children = 0 }
-
     for _, c in ipairs(ZoneBuilds:GetChildren()) do
-        if not (KeepTopNames[c.Name] or isZone(c.Name)) then
-            c:Destroy(); stats.top += 1
-        end
+        if not (KeepTopNames[c.Name] or isZone(c.Name)) then c:Destroy() end
     end
 
     for _, zone in ipairs(ZoneBuilds:GetChildren()) do
         if not isZone(zone.Name) then continue end
-        stats.zones += 1
         for _, c in ipairs(zone:GetChildren()) do
             local keep = false
             if c.Name == "Chicken" and hasAnim(c) then
                 keep = true
                 if ChickenOnlyAnimSaves then
                     for _, sub in ipairs(c:GetChildren()) do
-                        if sub.Name ~= "AnimSaves" then
-                            sub:Destroy(); stats.children += 1
-                        end
+                        if sub.Name ~= "AnimSaves" then sub:Destroy() end
                     end
                 end
             elseif c.Name == "Eggs" and KeepEggs then
@@ -216,65 +210,116 @@ task.spawn(function()
             elseif hasAnim(c) then
                 keep = true
             end
-            if not keep then c:Destroy(); stats.children += 1 end
+            if not keep then c:Destroy() end
         end
     end
-    print(("[Lunaa] Đã xóa map ngầm: zones=%d top=%d children=%d"):format(stats.zones, stats.top, stats.children))
 end)
 
---══════════════════════ [5] GIAO DIỆN UI (CLEAN & MINIMAL) ══════════════════════
-pcall(function() playerGui.LunaaLineMenu:Destroy() end)
-pcall(function() game:GetService("CoreGui").LunaaLineMenu:Destroy() end)
+--══════════════════════ [5] BIẾN TOÀN CỤC ══════════════════════
+local tweenSuperEnabled = false
+local opHugeEnabled = false
+local selectedZones = {} 
+local activeEggs = {} 
 
+--══════════════════════ [6] HÀM TẠO NÚT CÓ HIỆU ỨNG KÍNH (GLARE) ══════════════════════
+local BASE_COLOR   = Color3.fromRGB(25, 15, 40)
+local ACTIVE_COLOR = Color3.fromRGB(8, 5, 12)
+local HOVER_COLOR  = Color3.fromRGB(35, 20, 55)
+
+local function playGlare(btn)
+    if not btn:GetAttribute("Active") then return end
+    local glare = btn:FindFirstChild("Glare")
+    if not glare then return end
+    
+    glare.Position = UDim2.new(0, -100, -0.5, 0)
+    local tw = TweenService:Create(glare, TweenInfo.new(0.8, Enum.EasingStyle.Linear), {Position = UDim2.new(1, 100, -0.5, 0)})
+    tw:Play()
+    tw.Completed:Connect(function()
+        if btn:GetAttribute("Active") then
+            task.wait(0.3)
+            playGlare(btn)
+        end
+    end)
+end
+
+local function mkBtn(text, posY, parent)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -24, 0, 32)
+    b.Position = UDim2.new(0.5, 0, 0, posY)
+    b.AnchorPoint = Vector2.new(0.5, 0)
+    b.BackgroundColor3 = BASE_COLOR
+    b.Text = text
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 14
+    b.TextColor3 = Color3.fromRGB(220, 180, 255)
+    b.TextStrokeTransparency = 0.8
+    b.BorderSizePixel = 0
+    b.AutoButtonColor = false
+    b.ClipsDescendants = true -- Để kính không tràn ra ngoài nút
+    b.Parent = parent
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    
+    local bStroke = Instance.new("UIStroke", b)
+    bStroke.Color = Color3.fromRGB(100, 40, 180) 
+    bStroke.Thickness = 1
+    bStroke.Transparency = 0.4
+
+    -- Ô kính trong suốt (Glare)
+    local glare = Instance.new("Frame")
+    glare.Name = "Glare"
+    glare.Size = UDim2.new(0, 60, 2, 0)
+    glare.Position = UDim2.new(0, -100, -0.5, 0)
+    glare.Rotation = 115 -- Nghiêng 115 độ
+    glare.BackgroundColor3 = Color3.new(1, 1, 1)
+    glare.BorderSizePixel = 0
+    glare.ZIndex = 2
+    glare.Parent = b
+
+    local gGrad = Instance.new("UIGradient", glare)
+    gGrad.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.5, 0.4), -- Độ mờ của kính
+        NumberSequenceKeypoint.new(1, 1)
+    })
+
+    b.MouseEnter:Connect(function()
+        if not b:GetAttribute("Active") then
+            TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = HOVER_COLOR}):Play()
+        end
+    end)
+    b.MouseLeave:Connect(function()
+        if not b:GetAttribute("Active") then
+            TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = BASE_COLOR}):Play()
+        end
+    end)
+    
+    b:SetAttribute("Active", false)
+    return b
+end
+
+local function setBtnActive(btn, isActive)
+    btn:SetAttribute("Active", isActive)
+    TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = isActive and ACTIVE_COLOR or BASE_COLOR}):Play()
+    local glare = btn:FindFirstChild("Glare")
+    if glare then
+        if isActive then
+            playGlare(btn)
+        else
+            glare.Position = UDim2.new(0, -100, -0.5, 0)
+        end
+    end
+end
+
+--══════════════════════ [7] MENU CHÍNH ══════════════════════
 local gui = Instance.new("ScreenGui")
-gui.Name = "LunaaLineMenu"
+gui.Name = "LunaaMain"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.DisplayOrder = 999999 
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Enabled = true 
+local success = pcall(function() gui.Parent = game:GetService("CoreGui") end)
+if not success or not gui.Parent then gui.Parent = playerGui end
 
-local success = pcall(function()
-    gui.Parent = game:GetService("CoreGui")
-end)
-if not success or not gui.Parent then
-    gui.Parent = playerGui
-end
-
--- Chat toggle
-local menuVisible = true
-local lastToggle = 0
-
-local function toggleMenu()
-    if tick() - lastToggle < 0.5 then return end
-    lastToggle = tick()
-    menuVisible = not menuVisible
-    gui.Enabled = menuVisible
-end
-
-if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-    TextChatService.MessageReceived:Connect(function(msg)
-        if msg.TextSource and msg.TextSource.UserId == player.UserId then
-            local text = msg.Text:lower():match("^%s*(.-)%s*$")
-            if text == CHAT_COMMAND then toggleMenu() end
-        end
-    end)
-end
-pcall(function()
-    player.Chatted:Connect(function(msg)
-        local text = msg:lower():match("^%s*(.-)%s*$")
-        if text == CHAT_COMMAND then toggleMenu() end
-    end)
-end)
-
-task.spawn(function()
-    while gui.Parent do
-        if menuVisible and not gui.Enabled then gui.Enabled = true end
-        task.wait(1)
-    end
-end)
-
---────────────────────── KHUNG CHÍNH ──────────────────────
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, 220, 0, 40)
 main.Position = UDim2.new(1, -20, 0, 20)
@@ -285,7 +330,6 @@ main.BorderSizePixel = 0
 main.ClipsDescendants = true             
 main.Parent = gui
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
-
 local mainStroke = Instance.new("UIStroke", main)
 mainStroke.Color = Color3.fromRGB(120, 50, 200)
 mainStroke.Thickness = 1.5
@@ -296,7 +340,6 @@ header.Size = UDim2.new(1, 0, 0, 40)
 header.BackgroundTransparency = 1
 header.Parent = main
 
--- Title Text (Đổ bóng nhẹ để nổi bật)
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -60, 1, 0)
 title.Position = UDim2.new(0, 15, 0, 0)
@@ -326,9 +369,6 @@ local toggleStroke = Instance.new("UIStroke", toggleBtn)
 toggleStroke.Color = Color3.fromRGB(120, 50, 200)
 toggleStroke.Thickness = 1
 
-toggleBtn.MouseEnter:Connect(function() TweenService:Create(toggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 25, 70)}):Play() end)
-toggleBtn.MouseLeave:Connect(function() TweenService:Create(toggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 15, 40)}):Play() end)
-
 local body = Instance.new("Frame")
 body.Size = UDim2.new(1, 0, 0, 0)
 body.Position = UDim2.new(0, 0, 0, 40)
@@ -336,53 +376,10 @@ body.BackgroundTransparency = 1
 body.ClipsDescendants = true
 body.Parent = main
 
---────────────────────── TẠO NÚT BẤM (NỀN TỐI) ──────────────────────
-local BASE_COLOR   = Color3.fromRGB(25, 15, 40)   -- Màu nền bình thường
-local ACTIVE_COLOR = Color3.fromRGB(8, 5, 12)     -- Màu nền khi bật (Tối sầm)
-local HOVER_COLOR  = Color3.fromRGB(35, 20, 55)   -- Màu nền khi di chuột
+local lineBtn = mkBtn("Lunaa Line", 10, body)
+local tweenBtn = mkBtn("Tween Lunaa", 48, body)
 
-local function mkBtn(text, posY)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(1, -24, 0, 32)
-    b.Position = UDim2.new(0.5, 0, 0, posY)
-    b.AnchorPoint = Vector2.new(0.5, 0)
-    b.BackgroundColor3 = BASE_COLOR
-    b.Text = text
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = 14
-    b.TextColor3 = Color3.fromRGB(220, 180, 255) -- Tím nhạt (Giữ nguyên)
-    b.TextStrokeTransparency = 0.8
-    b.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    b.BorderSizePixel = 0
-    b.AutoButtonColor = false
-    b.Parent = body
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-
-    local bStroke = Instance.new("UIStroke", b)
-    bStroke.Color = Color3.fromRGB(100, 40, 180) 
-    bStroke.Thickness = 1
-    bStroke.Transparency = 0.4
-
-    b.MouseEnter:Connect(function()
-        if not b:GetAttribute("Active") then
-            TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = HOVER_COLOR}):Play()
-        end
-    end)
-    
-    b.MouseLeave:Connect(function()
-        if not b:GetAttribute("Active") then
-            TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = BASE_COLOR}):Play()
-        end
-    end)
-    
-    b:SetAttribute("Active", false)
-    return b
-end
-
-local lineBtn = mkBtn("Lunaa Line", 10)
-local tweenBtn = mkBtn("Tween Lunaa", 48)
-
---────────────────────── CÀI ĐẶT TỐC ĐỘ ──────────────────────
+-- Settings Tốc Độ Menu Chính
 local settingsRow = Instance.new("Frame")
 settingsRow.Size = UDim2.new(1, -24, 0, 32)
 settingsRow.Position = UDim2.new(0.5, 0, 0, 86)
@@ -392,14 +389,8 @@ settingsRow.BorderSizePixel = 0
 settingsRow.Parent = body
 Instance.new("UICorner", settingsRow).CornerRadius = UDim.new(0, 6)
 
-local rowStroke = Instance.new("UIStroke", settingsRow)
-rowStroke.Color = Color3.fromRGB(100, 40, 180)
-rowStroke.Thickness = 1
-rowStroke.Transparency = 0.4
-
 local minusBtn = Instance.new("TextButton")
 minusBtn.Size = UDim2.new(0, 32, 1, 0)
-minusBtn.Position = UDim2.new(0, 0, 0, 0)
 minusBtn.BackgroundColor3 = Color3.fromRGB(35, 20, 55)
 minusBtn.Text = "-"
 minusBtn.Font = Enum.Font.GothamBold
@@ -433,59 +424,370 @@ plusBtn.AutoButtonColor = false
 plusBtn.Parent = settingsRow
 Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 6)
 
-local function changeSpeed(delta)
-    TWEEN_SPEED = math.clamp(TWEEN_SPEED + delta, 20, 1000)
-    speedLabel.Text = tostring(TWEEN_SPEED)
-    playClick()
-end
+minusBtn.MouseButton1Click:Connect(function() TWEEN_SPEED = math.clamp(TWEEN_SPEED - 10, 20, 1000); speedLabel.Text = tostring(TWEEN_SPEED); playClick() end)
+plusBtn.MouseButton1Click:Connect(function() TWEEN_SPEED = math.clamp(TWEEN_SPEED + 10, 20, 1000); speedLabel.Text = tostring(TWEEN_SPEED); playClick() end)
 
-minusBtn.MouseButton1Click:Connect(function() changeSpeed(-10) end)
-plusBtn.MouseButton1Click:Connect(function() changeSpeed(10) end)
-
-minusBtn.MouseEnter:Connect(function() TweenService:Create(minusBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 30, 90)}):Play() end)
-minusBtn.MouseLeave:Connect(function() TweenService:Create(minusBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 20, 55)}):Play() end)
-plusBtn.MouseEnter:Connect(function() TweenService:Create(plusBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 30, 90)}):Play() end)
-plusBtn.MouseLeave:Connect(function() TweenService:Create(plusBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 20, 55)}):Play() end)
-
---══════════════════════ [6] LOGIC ĐÓNG/MỞ ══════════════════════
 local expanded = false
 toggleBtn.MouseButton1Click:Connect(function()
     expanded = not expanded
     toggleBtn.Text = expanded and "-" or "+"
     playClick()
     local targetH = expanded and 124 or 0 
+    TweenService:Create(body, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
+    TweenService:Create(main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
+end)
+
+--══════════════════════ [8] MENU ẨN ══════════════════════
+local guiHidden = Instance.new("ScreenGui")
+guiHidden.Name = "LunaaHidden"
+guiHidden.ResetOnSpawn = false
+guiHidden.IgnoreGuiInset = true
+guiHidden.DisplayOrder = 999998
+guiHidden.Enabled = false 
+local success2 = pcall(function() guiHidden.Parent = game:GetService("CoreGui") end)
+if not success2 or not guiHidden.Parent then guiHidden.Parent = playerGui end
+
+local hMain = Instance.new("Frame")
+hMain.Size = UDim2.new(0, 220, 0, 40)
+hMain.Position = UDim2.new(1, -20, 0, 280) 
+hMain.AnchorPoint = Vector2.new(1, 0)     
+hMain.BackgroundColor3 = Color3.fromRGB(15, 10, 25) 
+hMain.BackgroundTransparency = 0.1
+hMain.BorderSizePixel = 0
+hMain.ClipsDescendants = true             
+hMain.Parent = guiHidden
+Instance.new("UICorner", hMain).CornerRadius = UDim.new(0, 8)
+local hMainStroke = Instance.new("UIStroke", hMain)
+hMainStroke.Color = Color3.fromRGB(120, 50, 200)
+hMainStroke.Thickness = 1.5
+hMainStroke.Transparency = 0.2
+
+local hHeader = Instance.new("Frame")
+hHeader.Size = UDim2.new(1, 0, 0, 40)
+hHeader.BackgroundTransparency = 1
+hHeader.Parent = hMain
+
+local hTitle = Instance.new("TextLabel")
+hTitle.Size = UDim2.new(1, -60, 1, 0)
+hTitle.Position = UDim2.new(0, 15, 0, 0)
+hTitle.BackgroundTransparency = 1
+hTitle.Text = 'Lunaa Hidden'
+hTitle.Font = Enum.Font.GothamBlack
+hTitle.TextSize = 18
+hTitle.TextColor3 = Color3.fromRGB(230, 180, 255)
+hTitle.TextXAlignment = Enum.TextXAlignment.Left
+hTitle.TextStrokeTransparency = 0.5
+hTitle.TextStrokeColor3 = Color3.fromRGB(80, 0, 150)
+hTitle.Parent = hHeader
+
+local hToggleBtn = Instance.new("TextButton")
+hToggleBtn.Size = UDim2.new(0, 30, 0, 30)
+hToggleBtn.Position = UDim2.new(1, -40, 0.5, -15)
+hToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 15, 40)
+hToggleBtn.Text = "+"
+hToggleBtn.Font = Enum.Font.GothamBold
+hToggleBtn.TextSize = 18
+hToggleBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+hToggleBtn.BorderSizePixel = 0
+hToggleBtn.AutoButtonColor = false
+hToggleBtn.Parent = hHeader
+Instance.new("UICorner", hToggleBtn).CornerRadius = UDim.new(0, 6)
+
+local hBody = Instance.new("Frame")
+hBody.Size = UDim2.new(1, 0, 0, 0)
+hBody.Position = UDim2.new(0, 0, 0, 40)
+hBody.BackgroundTransparency = 1
+hBody.ClipsDescendants = true
+hBody.Parent = hMain
+
+local tweenSuperBtn = mkBtn("Tween Super", 10, hBody)
+local opHugeBtn = mkBtn("OP Huge", 48, hBody)
+
+-- Dropdown
+local dropBtn = mkBtn("▼ Select Zones", 86, hBody)
+local dropFrame = Instance.new("ScrollingFrame")
+dropFrame.Size = UDim2.new(1, -24, 0, 100)
+dropFrame.Position = UDim2.new(0.5, 0, 0, 122)
+dropFrame.AnchorPoint = Vector2.new(0.5, 0)
+dropFrame.BackgroundColor3 = BASE_COLOR
+dropFrame.BorderSizePixel = 0
+dropFrame.Visible = false
+dropFrame.ScrollBarThickness = 4
+dropFrame.ScrollBarImageColor3 = Color3.fromRGB(150, 50, 255)
+dropFrame.Parent = hBody
+Instance.new("UICorner", dropFrame).CornerRadius = UDim.new(0, 6)
+
+local dropLayout = Instance.new("UIListLayout", dropFrame)
+dropLayout.Padding = UDim.new(0, 4)
+dropLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local dropPad = Instance.new("UIPadding", dropFrame)
+dropPad.PaddingTop = UDim.new(0, 4)
+dropPad.PaddingBottom = UDim.new(0, 4)
+
+local hExpanded = false
+hToggleBtn.MouseButton1Click:Connect(function()
+    hExpanded = not hExpanded
+    hToggleBtn.Text = hExpanded and "-" or "+"
+    playClick()
+    local targetH = hExpanded and 230 or 0 
+    TweenService:Create(hBody, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
+    TweenService:Create(hMain, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
+end)
+
+dropBtn.MouseButton1Click:Connect(function()
+    playClick()
+    dropFrame.Visible = not dropFrame.Visible
+    if dropFrame.Visible then
+        dropBtn.Text = "▲ Select Zones"
+    else
+        dropBtn.Text = "▼ Select Zones"
+    end
+end)
+
+--══════════════════════ [9] LOGIC OP HUGE ══════════════════════
+local function clearEggs()
+    for _, data in ipairs(activeEggs) do
+        if data.highlight then data.highlight:Destroy() end
+        if data.billboard then data.billboard:Destroy() end
+    end
+    activeEggs = {}
+end
+
+local function scanEggs()
+    clearEggs()
+    if not opHugeEnabled then return end
+
+    local ZoneBuilds = Workspace:FindFirstChild("Build") and Workspace.Build:FindFirstChild("ZoneBuilds")
+    if not ZoneBuilds then return end
+
+    for _, zone in ipairs(ZoneBuilds:GetChildren()) do
+        if selectedZones[zone.Name] then
+            local eggsFolder = zone:FindFirstChild("Eggs")
+            if eggsFolder then
+                for _, egg in ipairs(eggsFolder:GetChildren()) do
+                    if egg:IsA("Model") or egg:IsA("BasePart") then
+                        local hl = Instance.new("Highlight")
+                        hl.FillTransparency = 1
+                        hl.OutlineColor = Color3.new(1, 1, 1)
+                        hl.OutlineTransparency = 0
+                        hl.Adornee = egg
+                        hl.Parent = egg
+                        hl.Enabled = false
+
+                        local bb = Instance.new("BillboardGui")
+                        bb.Size = UDim2.new(0, 120, 0, 40)
+                        bb.StudsOffset = Vector3.new(0, 3, 0)
+                        bb.AlwaysOnTop = true
+                        bb.Adornee = egg
+                        bb.Enabled = false
+
+                        local txt = Instance.new("TextLabel")
+                        txt.Size = UDim2.new(1, 0, 1, 0)
+                        txt.BackgroundTransparency = 1
+                        txt.Text = "HUGE"
+                        txt.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        txt.TextStrokeTransparency = 0
+                        txt.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                        txt.Font = Enum.Font.GothamBlack
+                        -- SỬA TẠI ĐÂY: Bỏ TextScaled, set TextSize = 22
+                        txt.TextScaled = false 
+                        txt.TextSize = 22 
+                        txt.Parent = bb
+                        bb.Parent = egg
+
+                        table.insert(activeEggs, {egg = egg, highlight = hl, billboard = bb})
+                    end
+                end
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if not opHugeEnabled then continue end
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            for _, data in ipairs(activeEggs) do
+                if data.egg and data.egg.Parent then
+                    local eggPos = data.egg:GetPivot().Position
+                    local dist = (hrp.Position - eggPos).Magnitude
+                    local shouldShow = dist <= 30
+                    
+                    if data.highlight then data.highlight.Enabled = shouldShow end
+                    if data.billboard then data.billboard.Enabled = shouldShow end
+                end
+            end
+        end
+    end
+end)
+
+--══════════════════════ [10] TƯƠNG TÁC NÚT TWEEN SUPER & OP HUGE ══════════════════════
+tweenSuperBtn.MouseButton1Click:Connect(function()
+    tweenSuperEnabled = not tweenSuperEnabled
+    playClick()
+    setBtnActive(tweenSuperBtn, tweenSuperEnabled)
+end)
+
+opHugeBtn.MouseButton1Click:Connect(function()
+    opHugeEnabled = not opHugeEnabled
+    playClick()
+    setBtnActive(opHugeBtn, opHugeEnabled)
+    scanEggs()
+end)
+
+--══════════════════════ [11] QUÉT VÀ TẠO DANH SÁCH ZONE ══════════════════════
+task.spawn(function()
+    local ZoneBuilds = Workspace:WaitForChild("Build", 10) and Workspace.Build:WaitForChild("ZoneBuilds", 10)
+    if not ZoneBuilds then return end
+
+    local zones = {}
+    for _, child in ipairs(ZoneBuilds:GetChildren()) do
+        local num = child.Name:match(ZonePattern)
+        if num then
+            table.insert(zones, {name = child.Name, num = tonumber(num)})
+        end
+    end
+
+    table.sort(zones, function(a, b) return a.num < b.num end)
+
+    for i, z in ipairs(zones) do
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(1, -8, 0, 24)
+        b.BackgroundColor3 = Color3.fromRGB(15, 10, 25)
+        b.Text = z.name
+        b.Font = Enum.Font.GothamBold
+        b.TextSize = 12
+        b.TextColor3 = Color3.fromRGB(200, 200, 200)
+        b.BorderSizePixel = 0
+        b.AutoButtonColor = false
+        b.LayoutOrder = i
+        b.Parent = dropFrame
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
+
+        if z.num >= 7 then
+            selectedZones[z.name] = true
+            b.TextColor3 = Color3.fromRGB(0, 255, 255)
+            b.BackgroundColor3 = Color3.fromRGB(40, 20, 60)
+        else
+            selectedZones[z.name] = false
+        end
+
+        b.MouseButton1Click:Connect(function()
+            selectedZones[z.name] = not selectedZones[z.name]
+            if selectedZones[z.name] then
+                b.TextColor3 = Color3.fromRGB(0, 255, 255)
+                b.BackgroundColor3 = Color3.fromRGB(40, 20, 60)
+            else
+                b.TextColor3 = Color3.fromRGB(200, 200, 200)
+                b.BackgroundColor3 = Color3.fromRGB(15, 10, 25)
+            end
+            scanEggs() 
+        end)
+    end
+
+    dropFrame.CanvasSize = UDim2.new(0, 0, 0, dropLayout.AbsoluteContentSize.Y + 10)
+end)
+
+--══════════════════════ [12] CHAT COMMAND ══════════════════════
+local function checkChat(msg)
+    local text = msg:lower():match("^%s*(.-)%s*$")
+    if text == "#" then
+        guiHidden.Enabled = not guiHidden.Enabled
+    elseif text == CHAT_MAIN then
+        gui.Enabled = not gui.Enabled
+    end
+end
+
+if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+    TextChatService.MessageReceived:Connect(function(msg)
+        if msg.TextSource and msg.TextSource.UserId == player.UserId then
+            checkChat(msg.Text)
+        end
+    end)
+end
+pcall(function() player.Chatted:Connect(checkChat) end)
+
+--══════════════════════ [13] LOGIC TWEEN LUNAA & LINE ══════════════════════
+local activeTween, hum, origSpeed = nil, nil, nil
+local isTweening = false
+
+local function stopTween()
+    isTweening = false
+    if activeTween then activeTween:Cancel(); activeTween = nil end
+    if hum and hum.Parent then
+        hum.WalkSpeed = origSpeed or 16
+        local root = hum.Parent:FindFirstChild("HumanoidRootPart")
+        if root then root.AssemblyLinearVelocity = Vector3.zero end
+    end
+    setBtnActive(tweenBtn, false)
+end
+
+local function startTween()
+    local c = player.Character; if not c then return end
+    local h = c:FindFirstChildOfClass("Humanoid")
+    local r = c:FindFirstChild("HumanoidRootPart")
+    if not h or not r then return end
     
-    TweenService:Create(body, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
-        {Size = UDim2.new(1, 0, 0, targetH)}):Play()
-    TweenService:Create(main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
-        {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
+    hum = h
+    origSpeed = h.WalkSpeed
+    isTweening = true
+    playClick()
+    setBtnActive(tweenBtn, true)
+
+    h.WalkSpeed = 0
+    h:Move(Vector3.zero, false)
+
+    task.spawn(function()
+        local currentPos = r.Position
+        local startY = currentPos.Y
+        local midPos = Vector3.new(currentPos.X, startY, TARGET.Z)
+        local finalPos = Vector3.new(TARGET.X, startY, TARGET.Z)
+        
+        local function doMovement(targetPos)
+            if not isTweening then return end
+            local distance = (targetPos - r.Position).Magnitude
+            
+            if tweenSuperEnabled then
+                local direction = (targetPos - r.Position).Unit
+                local traveled = 0
+                while traveled < distance do
+                    if not isTweening then return end
+                    local step = math.min(10, distance - traveled)
+                    local stepTarget = r.Position + direction * step
+                    local ti = TweenInfo.new(step / TWEEN_SPEED, Enum.EasingStyle.Linear)
+                    local t = TweenService:Create(r, ti, {CFrame = CFrame.new(stepTarget)})
+                    t:Play()
+                    t.Completed:Wait()
+                    traveled += step
+                end
+            else
+                local ti = TweenInfo.new(distance / TWEEN_SPEED, Enum.EasingStyle.Linear)
+                local t = TweenService:Create(r, ti, {CFrame = CFrame.new(targetPos)})
+                activeTween = t
+                t:Play()
+                t.Completed:Wait()
+            end
+        end
+
+        if (currentPos - midPos).Magnitude > 1 then doMovement(midPos) end
+        if isTweening and (midPos - finalPos).Magnitude > 1 then doMovement(finalPos) end
+        if isTweening then stopTween() end
+    end)
+end
+
+tweenBtn.MouseButton1Click:Connect(function()
+    if isTweening then stopTween() else startTween() end
 end)
 
--- Kéo thả
-local dragging, dragStart, startPos
-header.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-        dragging = true; dragStart = i.Position; startPos = main.Position
-    end
-end)
-UIS.InputChanged:Connect(function(i)
-    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-        local d = i.Position - dragStart
-        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-    end
-end)
-UIS.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
-end)
-
---══════════════════════ [7] LOGIC ESP LINE ══════════════════════
+-- Logic Line
 local lineOn, beam = false, nil
 local function getRoot()
     local c = player.Character
     if not c then return nil end
     return c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("Torso")
 end
-
 local tgtAtt = Instance.new("Attachment")
 tgtAtt.WorldPosition = TARGET
 tgtAtt.Parent = Workspace.Terrain
@@ -518,98 +820,13 @@ end
 lineBtn.MouseButton1Click:Connect(function()
     lineOn = not lineOn
     playClick()
-    
     if lineOn and setupLine() then
-        TweenService:Create(lineBtn, TweenInfo.new(0.2), {BackgroundColor3 = ACTIVE_COLOR}):Play() -- Chỉ tối nền
-        lineBtn:SetAttribute("Active", true)
+        setBtnActive(lineBtn, true)
     else
         lineOn = false; clearLine()
-        TweenService:Create(lineBtn, TweenInfo.new(0.2), {BackgroundColor3 = BASE_COLOR}):Play() 
-        lineBtn:SetAttribute("Active", false)
-    end
-end)
-
-player.CharacterAdded:Connect(function(c)
-    c:WaitForChild("HumanoidRootPart", 10)
-    if lineOn then task.wait(0.2); setupLine() end
-end)
-
---══════════════════════ [8] LOGIC TWEEN LUNAA ══════════════════════
-local activeTween, hum, origSpeed = nil, nil, nil
-local isTweening = false
-
-local function stopTween()
-    isTweening = false
-    if activeTween then
-        activeTween:Cancel()
-        activeTween = nil
-    end
-    if hum and hum.Parent then
-        hum.WalkSpeed = origSpeed or 16
-        local root = hum.Parent:FindFirstChild("HumanoidRootPart")
-        if root then root.AssemblyLinearVelocity = Vector3.zero end
-    end
-    
-    TweenService:Create(tweenBtn, TweenInfo.new(0.2), {BackgroundColor3 = BASE_COLOR}):Play()
-    tweenBtn:SetAttribute("Active", false)
-end
-
-local function startTween()
-    local c = player.Character; if not c then return end
-    local h = c:FindFirstChildOfClass("Humanoid")
-    local r = c:FindFirstChild("HumanoidRootPart")
-    if not h or not r then return end
-    
-    hum = h
-    origSpeed = h.WalkSpeed
-    isTweening = true
-    playClick()
-    
-    TweenService:Create(tweenBtn, TweenInfo.new(0.2), {BackgroundColor3 = ACTIVE_COLOR}):Play() -- Chỉ tối nền
-    tweenBtn:SetAttribute("Active", true)
-
-    h.WalkSpeed = 0
-    h:Move(Vector3.zero, false)
-
-    task.spawn(function()
-        local currentPos = r.Position
-        local startY = currentPos.Y
-        
-        local midPos = Vector3.new(currentPos.X, startY, TARGET.Z)
-        local dist1 = (currentPos - midPos).Magnitude
-        
-        if dist1 > 1 then
-            local t1 = TweenService:Create(r, TweenInfo.new(dist1 / TWEEN_SPEED, Enum.EasingStyle.Linear), {CFrame = CFrame.new(midPos)})
-            activeTween = t1
-            t1:Play()
-            t1.Completed:Wait()
-        end
-
-        if not isTweening then return end
-
-        local finalPos = Vector3.new(TARGET.X, startY, TARGET.Z)
-        local dist2 = (midPos - finalPos).Magnitude
-        
-        if dist2 > 1 then
-            local t2 = TweenService:Create(r, TweenInfo.new(dist2 / TWEEN_SPEED, Enum.EasingStyle.Linear), {CFrame = CFrame.new(finalPos)})
-            activeTween = t2
-            t2:Play()
-            t2.Completed:Wait()
-        end
-
-        if isTweening then
-            stopTween()
-        end
-    end)
-end
-
-tweenBtn.MouseButton1Click:Connect(function()
-    if isTweening then 
-        stopTween() 
-    else 
-        startTween() 
+        setBtnActive(lineBtn, false)
     end
 end)
 
 player.CharacterAdded:Connect(stopTween)
-print("[Lunaa] Đã xóa sạch highlight xanh. Chỉ tối nền.")
+print("[Lunaa] Loaded - Updated Glare Effect & OP Huge Size 22.")
