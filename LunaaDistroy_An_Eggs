@@ -1,5 +1,5 @@
 --==================================================================
---  LUNAA — DELTA EXECUTOR (Full Final + Lucky OP)
+--  LUNAA — DELTA EXECUTOR (Full Final - Lucky HatchLuck + See Kg)
 --==================================================================
 local Players             = game:GetService("Players")
 local RunService          = game:GetService("RunService")
@@ -266,6 +266,7 @@ end)
 local tweenSuperEnabled = false
 local opHugeEnabled = false
 local luckyOpEnabled = false
+local seeKgEnabled = false
 local selectedZones = {} 
 local activeEggs = {} 
 local menuVisible = true
@@ -569,12 +570,13 @@ hBody.Parent = hMain
 -- Các nút trong Menu 2
 local tweenSuperBtn = mkBtn("Tween Super", 10, hBody)
 local opHugeBtn = mkBtn("OP Huge", 48, hBody)
-local luckyOpBtn = mkBtn("Lucky OP", 86, hBody) -- Nút mới
+local luckyOpBtn = mkBtn("Lucky OP", 86, hBody)
+local seeKgBtn = mkBtn("See Kg", 124, hBody) -- Nút mới
 
-local dropBtn = mkBtn("▼ Select Zones", 124, hBody)
+local dropBtn = mkBtn("▼ Select Zones", 162, hBody)
 local dropFrame = Instance.new("ScrollingFrame")
 dropFrame.Size = UDim2.new(1, -24, 0, 100)
-dropFrame.Position = UDim2.new(0.5, 0, 0, 160) -- Dịch xuống
+dropFrame.Position = UDim2.new(0.5, 0, 0, 198) -- Dịch xuống
 dropFrame.AnchorPoint = Vector2.new(0.5, 0)
 dropFrame.BackgroundColor3 = BASE_COLOR
 dropFrame.BorderSizePixel = 0
@@ -595,8 +597,8 @@ local hExpanded = false
 hToggleBtn.MouseButton1Click:Connect(function()
     hExpanded = not hExpanded
     hToggleBtn.Text = hExpanded and "-" or "+"
-    -- Tăng chiều cao lên 270 để chứa 4 nút và dropdown
-    local targetH = hExpanded and 270 or 0 
+    -- Tăng chiều cao lên 310 để chứa 5 nút và dropdown
+    local targetH = hExpanded and 310 or 0 
     TweenService:Create(hBody, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetH)}):Play()
     TweenService:Create(hMain, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 40 + targetH)}):Play()
 end)
@@ -650,18 +652,19 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
---══════════════════════ [11] LOGIC QUÉT EGG (HUGE & LUCKY) ══════════════════════
+--══════════════════════ [11] LOGIC QUÉT EGG (HUGE, LUCKY, SEE KG) ══════════════════════
 local function clearEggs()
     for _, data in ipairs(activeEggs) do
-        if data.highlight then data.highlight:Destroy() end
-        if data.billboard then data.billboard:Destroy() end
+        for _, ui in ipairs(data.uis) do
+            if ui.obj then ui.obj:Destroy() end
+        end
     end
     activeEggs = {}
 end
 
 local function scanEggs()
     clearEggs()
-    if not opHugeEnabled and not luckyOpEnabled then return end
+    if not opHugeEnabled and not luckyOpEnabled and not seeKgEnabled then return end
 
     local ZoneBuilds = Workspace:FindFirstChild("Build") and Workspace.Build:FindFirstChild("ZoneBuilds")
     if not ZoneBuilds then return end
@@ -683,9 +686,11 @@ local function scanEggs()
                     if not seenEggs[targetModel] then
                         local isHuge = false
                         local weightKg = 0
-                        local luckVal = 0
+                        local hatchLuck = 0
+                        local eggBaseKg = 0
+                        local eggUIs = {}
 
-                        -- Lấy WeightBracket
+                        -- Lấy Data
                         local wb = obj:GetAttribute("WeightBracket")
                         if wb == "HUGE" then isHuge = true
                         else
@@ -693,7 +698,6 @@ local function scanEggs()
                             if wbObj and wbObj:IsA("StringValue") and wbObj.Value == "HUGE" then isHuge = true end
                         end
 
-                        -- Lấy WeightKg
                         local wkAttr = obj:GetAttribute("WeightKg")
                         if wkAttr then weightKg = wkAttr
                         else
@@ -701,44 +705,47 @@ local function scanEggs()
                             if wkObj and (wkObj:IsA("NumberValue") or wkObj:IsA("StringValue")) then weightKg = wkObj.Value end
                         end
 
-                        -- Lấy Luck
-                        local luckAttr = obj:GetAttribute("Luck")
-                        if luckAttr then luckVal = luckAttr
+                        local hlAttr = obj:GetAttribute("HatchLuck")
+                        if hlAttr then hatchLuck = hlAttr
                         else
-                            local luckObj = obj:FindFirstChild("Luck")
-                            if luckObj and (luckObj:IsA("NumberValue") or luckObj:IsA("StringValue")) then luckVal = luckObj.Value end
+                            local hlObj = obj:FindFirstChild("HatchLuck")
+                            if hlObj and (hlObj:IsA("NumberValue") or hlObj:IsA("StringValue")) then hatchLuck = hlObj.Value end
+                        end
+                        
+                        local kgAttr = obj:GetAttribute("EggBaseKg")
+                        if kgAttr then eggBaseKg = kgAttr
+                        else
+                            local kgObj = obj:FindFirstChild("EggBaseKg")
+                            if kgObj and (kgObj:IsA("NumberValue") or kgObj:IsA("StringValue")) then eggBaseKg = kgObj.Value end
                         end
 
-                        local createdSomething = false
-
-                        -- NẾU BẬT LUCKY OP -> Hiện Luck cho toàn bộ Egg trong Zone
-                        if luckyOpEnabled then
+                        -- 1. TẠO SEE KG (Nằm dưới cùng)
+                        if seeKgEnabled then
                             seenEggs[targetModel] = true
-                            local bbLucky = Instance.new("BillboardGui")
-                            bbLucky.Name = "LuckyBillboard"
-                            bbLucky.Size = UDim2.new(0, 120, 0, 30)
-                            bbLucky.StudsOffset = Vector3.new(0, 4.5, 0) -- Nằm cao hơn HUGE
-                            bbLucky.AlwaysOnTop = true
-                            bbLucky.Adornee = targetModel
-                            bbLucky.Enabled = false
+                            local bb = Instance.new("BillboardGui")
+                            bb.Name = "KgBillboard"
+                            bb.Size = UDim2.new(0, 100, 0, 25)
+                            bb.StudsOffset = Vector3.new(0, 2, 0)
+                            bb.AlwaysOnTop = true
+                            bb.Adornee = targetModel
+                            bb.Enabled = false
 
-                            local txtLucky = Instance.new("TextLabel")
-                            txtLucky.Size = UDim2.new(1, 0, 1, 0)
-                            txtLucky.BackgroundTransparency = 1
-                            txtLucky.Text = "Luck: " .. tostring(luckVal)
-                            txtLucky.TextColor3 = Color3.fromRGB(100, 255, 100) -- Màu xanh lá
-                            txtLucky.TextStrokeTransparency = 0
-                            txtLucky.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                            txtLucky.Font = Enum.Font.GothamBlack
-                            txtLucky.TextSize = 18 
-                            txtLucky.Parent = bbLucky
+                            local txt = Instance.new("TextLabel")
+                            txt.Size = UDim2.new(1, 0, 1, 0)
+                            txt.BackgroundTransparency = 1
+                            txt.Text = tostring(eggBaseKg) .. " KG"
+                            txt.TextColor3 = Color3.fromRGB(255, 215, 0) -- Màu vàng
+                            txt.TextStrokeTransparency = 0
+                            txt.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                            txt.Font = Enum.Font.GothamBlack
+                            txt.TextSize = 16 
+                            txt.Parent = bb
 
-                            bbLucky.Parent = targetModel
-                            table.insert(activeEggs, {egg = targetModel, billboard = bbLucky, type = "lucky"})
-                            createdSomething = true
+                            bb.Parent = targetModel
+                            table.insert(eggUIs, {obj = bb, dist = 30})
                         end
 
-                        -- NẾU BẬT OP HUGE -> Hiện HUGE (chỉ cho Egg Huge)
+                        -- 2. TẠO OP HUGE (Nằm giữa)
                         if opHugeEnabled and isHuge then
                             seenEggs[targetModel] = true
                             
@@ -750,14 +757,15 @@ local function scanEggs()
                             hl.Adornee = targetModel
                             hl.Parent = targetModel
                             hl.Enabled = false
+                            table.insert(eggUIs, {obj = hl, dist = 70})
 
-                            local bbHuge = Instance.new("BillboardGui")
-                            bbHuge.Name = "HugeBillboard"
-                            bbHuge.Size = UDim2.new(0, 150, 0, 60) 
-                            bbHuge.StudsOffset = Vector3.new(0, 3, 0) -- Nằm thấp hơn Lucky
-                            bbHuge.AlwaysOnTop = true
-                            bbHuge.Adornee = targetModel
-                            bbHuge.Enabled = false
+                            local bb = Instance.new("BillboardGui")
+                            bb.Name = "HugeBillboard"
+                            bb.Size = UDim2.new(0, 150, 0, 60) 
+                            bb.StudsOffset = Vector3.new(0, 3.5, 0) -- Đẩy cao hơn Kg
+                            bb.AlwaysOnTop = true
+                            bb.Adornee = targetModel
+                            bb.Enabled = false
 
                             local txtWeight = Instance.new("TextLabel")
                             txtWeight.Size = UDim2.new(1, 0, 0.5, 0)
@@ -769,7 +777,7 @@ local function scanEggs()
                             txtWeight.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
                             txtWeight.Font = Enum.Font.GothamBlack
                             txtWeight.TextSize = 20 
-                            txtWeight.Parent = bbHuge
+                            txtWeight.Parent = bb
 
                             local txtHuge = Instance.new("TextLabel")
                             txtHuge.Size = UDim2.new(1, 0, 0.5, 0)
@@ -781,11 +789,41 @@ local function scanEggs()
                             txtHuge.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
                             txtHuge.Font = Enum.Font.GothamBlack
                             txtHuge.TextSize = 22 
-                            txtHuge.Parent = bbHuge
+                            txtHuge.Parent = bb
 
-                            bbHuge.Parent = targetModel
-                            table.insert(activeEggs, {egg = targetModel, highlight = hl, billboard = bbHuge, type = "huge"})
-                            createdSomething = true
+                            bb.Parent = targetModel
+                            table.insert(eggUIs, {obj = bb, dist = 70})
+                        end
+
+                        -- 3. TẠO LUCKY (Nằm trên cùng)
+                        if luckyOpEnabled then
+                            seenEggs[targetModel] = true
+                            local bb = Instance.new("BillboardGui")
+                            bb.Name = "LuckyBillboard"
+                            bb.Size = UDim2.new(0, 120, 0, 30)
+                            bb.StudsOffset = Vector3.new(0, 5, 0) -- Đẩy cao nhất
+                            bb.AlwaysOnTop = true
+                            bb.Adornee = targetModel
+                            bb.Enabled = false
+
+                            local txt = Instance.new("TextLabel")
+                            txt.Size = UDim2.new(1, 0, 1, 0)
+                            txt.BackgroundTransparency = 1
+                            txt.Text = "Luck: " .. tostring(hatchLuck)
+                            txt.TextColor3 = Color3.fromRGB(100, 255, 100) -- Màu xanh lá
+                            txt.TextStrokeTransparency = 0
+                            txt.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                            txt.Font = Enum.Font.GothamBlack
+                            txt.TextSize = 18 
+                            txt.Parent = bb
+
+                            bb.Parent = targetModel
+                            table.insert(eggUIs, {obj = bb, dist = 40})
+                        end
+
+                        -- Nếu có bất kỳ UI nào được tạo thì lưu lại
+                        if #eggUIs > 0 then
+                            table.insert(activeEggs, {egg = targetModel, uis = eggUIs})
                         end
                     end
                 end
@@ -796,7 +834,7 @@ end
 
 task.spawn(function()
     while task.wait(0.1) do
-        if not opHugeEnabled and not luckyOpEnabled then continue end
+        if not opHugeEnabled and not luckyOpEnabled and not seeKgEnabled then continue end
         local char = player.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if hrp then
@@ -804,17 +842,19 @@ task.spawn(function()
                 if data.egg and data.egg.Parent then
                     local eggPos = data.egg:GetPivot().Position
                     local dist = (hrp.Position - eggPos).Magnitude
-                    local shouldShow = dist <= 70
                     
-                    if data.highlight then data.highlight.Enabled = shouldShow end
-                    if data.billboard then data.billboard.Enabled = shouldShow end
+                    for _, ui in ipairs(data.uis) do
+                        if ui.obj then
+                            ui.obj.Enabled = (dist <= ui.dist)
+                        end
+                    end
                 end
             end
         end
     end
 end)
 
---══════════════════════ [12] TƯƠNG TÁC NÚT TWEEN SUPER, OP HUGE, LUCKY OP ══════════════════════
+--══════════════════════ [12] TƯƠNG TÁC NÚT TWEEN SUPER, OP HUGE, LUCKY OP, SEE KG ══════════════════════
 tweenSuperBtn.MouseButton1Click:Connect(function()
     tweenSuperEnabled = not tweenSuperEnabled
     setBtnActive(tweenSuperBtn, tweenSuperEnabled)
@@ -829,6 +869,12 @@ end)
 luckyOpBtn.MouseButton1Click:Connect(function()
     luckyOpEnabled = not luckyOpEnabled
     setBtnActive(luckyOpBtn, luckyOpEnabled)
+    scanEggs()
+end)
+
+seeKgBtn.MouseButton1Click:Connect(function()
+    seeKgEnabled = not seeKgEnabled
+    setBtnActive(seeKgBtn, seeKgEnabled)
     scanEggs()
 end)
 
@@ -1011,8 +1057,8 @@ local function startTween()
                     local cPos = r.Position
                     local dir = (finalPos - cPos).Unit
                     
-                    -- 2.1: TP 80 studs
-                    local tpDist = math.min(80, (finalPos - cPos).Magnitude)
+                    -- 2.1: TP 115 studs (Đã tăng)
+                    local tpDist = math.min(115, (finalPos - cPos).Magnitude)
                     r.CFrame = r.CFrame + (dir * tpDist)
                     if (finalPos - r.Position).Magnitude <= 1 then break end
                     
@@ -1087,4 +1133,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     guiHidden.Enabled = expanded
 end)
 
-print("[Lunaa] Loaded Full - Lucky OP Added.")
+print("[Lunaa] Loaded Full - Lucky HatchLuck, See Kg, TP 115.")
